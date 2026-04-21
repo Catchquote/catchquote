@@ -1,0 +1,61 @@
+/* CatchQuote — orange theme */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .drag-handle {
+    cursor: grab;
+  }
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+}
+
+/* Brand orange overrides — replaces Tailwind-generated blue brand palette */
+.bg-brand-50  { background-color: #fff7ed !important; }
+.bg-brand-100 { background-color: #ffedd5 !important; }
+.bg-brand-200 { background-color: #fed7aa !important; }
+.bg-brand-500 { background-color: #f97316 !important; }
+.bg-brand-600 { background-color: #ea580c !important; }
+.bg-brand-700 { background-color: #c2410c !important; }
+
+.hover\:bg-brand-50:hover  { background-color: #fff7ed !important; }
+.hover\:bg-brand-600:hover { background-color: #ea580c !important; }
+.hover\:bg-brand-700:hover { background-color: #c2410c !important; }
+
+.text-brand-50  { color: #fff7ed !important; }
+.text-brand-100 { color: #ffedd5 !important; }
+.text-brand-200 { color: #fed7aa !important; }
+.text-brand-300 { color: #fdba74 !important; }
+.text-brand-500 { color: #f97316 !important; }
+.text-brand-600 { color: #ea580c !important; }
+.text-brand-700 { color: #c2410c !important; }
+
+.hover\:text-brand-600:hover { color: #ea580c !important; }
+.hover\:text-brand-700:hover { color: #c2410c !important; }
+
+.border-brand-200 { border-color: #fed7aa !important; }
+.border-brand-300 { border-color: #fdba74 !important; }
+.border-brand-500 { border-color: #f97316 !important; }
+.border-brand-600 { border-color: #ea580c !important; }
+
+.hover\:border-brand-200:hover { border-color: #fed7aa !important; }
+.hover\:border-brand-300:hover { border-color: #fdba74 !important; }
+
+.ring-brand-500 { --tw-ring-color: #f97316 !important; }
+
+.focus\:ring-brand-500:focus { --tw-ring-color: #f97316 !important; }
+.focus\:border-brand-500:focus { border-color: #f97316 !important; }
+
+.from-brand-500 { --tw-gradient-from: #f97316 !important; }
+.from-brand-700 { --tw-gradient-from: #c2410c !important; }
+.to-brand-500   { --tw-gradient-to:   #f97316 !important; }
+
+.bg-brand-50\/50 { background-color: rgb(255 247 237 / 0.5) !important; }

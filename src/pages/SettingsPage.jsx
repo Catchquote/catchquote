@@ -41,6 +41,8 @@ export default function SettingsPage({ onBack, onNavigate }) {
     company_phone:        '',
     company_email:        '',
     company_registration: '',
+    designer_name:        '',
+    designer_position:    '',
     terms_and_conditions: '',
     footer_message:       'Thank you for your business.',
   })
@@ -69,6 +71,8 @@ export default function SettingsPage({ onBack, onNavigate }) {
           company_phone:        data.company_phone        ?? prev.company_phone,
           company_email:        data.company_email        ?? prev.company_email,
           company_registration: data.company_registration ?? prev.company_registration,
+          designer_name:        data.designer_name        ?? prev.designer_name,
+          designer_position:    data.designer_position    ?? prev.designer_position,
           terms_and_conditions: data.terms_and_conditions ?? prev.terms_and_conditions,
           footer_message:       data.footer_message       ?? prev.footer_message,
         }))
@@ -259,6 +263,15 @@ export default function SettingsPage({ onBack, onNavigate }) {
             <Field label="Company Registration Number" hint="ABN, ACN, or other registration number">
               <input className={input} value={settings.company_registration} onChange={set('company_registration')} placeholder="12 345 678 901" />
             </Field>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Designer Name" hint="Appears on quote PDF signature block">
+                <input className={input} value={settings.designer_name} onChange={set('designer_name')} placeholder="Jane Smith" />
+              </Field>
+              <Field label="Designer Position">
+                <input className={input} value={settings.designer_position} onChange={set('designer_position')} placeholder="Interior Designer" />
+              </Field>
+            </div>
           </Section>
 
           {/* ── Quote footer ── */}

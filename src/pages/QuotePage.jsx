@@ -38,8 +38,21 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   const [pageLoading, setPageLoading] = useState(!!quoteId)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [wsSettings, setWsSettings] = useState(null)
 
   const { items, addItem, addItems, updateItem, removeItem, reorderItems, resetItems, subtotal, gst, total } = useQuote()
+
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await supabase
+        .from('workspace_settings')
+        .select('company_name,company_logo_url,brand_colour,designer_name,designer_position,footer_message,terms_and_conditions')
+        .eq('workspace_id', workspace.id)
+        .maybeSingle()
+      if (data) setWsSettings(data)
+    }
+    loadSettings()
+  }, [workspace.id])
 
   useEffect(() => {
     if (!quoteId) return
@@ -92,7 +105,7 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   }
 
   function handleExport() {
-    exportQuotePDF({ quote, items, subtotal, gst, total })
+    exportQuotePDF({ quote, items, subtotal, gst, total, settings: wsSettings })
   }
 
   async function handleSave() {

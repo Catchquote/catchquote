@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import QuotePage from './pages/QuotePage.jsx'
 import TeamPage from './pages/TeamPage.jsx'
 import PresetsPage from './pages/PresetsPage.jsx'
+import SettingsPage from './pages/SettingsPage.jsx'
 import PricingPage from './pages/PricingPage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -26,7 +27,7 @@ function AppContent() {
   const [activeQuoteId, setActiveQuoteId] = useState(null)
 
   function navigate(pg) {
-    if ((pg === 'team' || pg === 'presets') && role !== 'admin') return
+    if ((pg === 'team' || pg === 'presets' || pg === 'settings') && role !== 'admin') return
     if (pg === 'superadmin' && !isSuperAdmin) return
     setPage(pg)
     if (pg !== 'quote') setActiveQuoteId(null)
@@ -116,6 +117,9 @@ function AppContent() {
   }
   if (page === 'presets' && role === 'admin') {
     return <PresetsPage onBack={() => navigate('dashboard')} onNavigate={navigate} />
+  }
+  if (page === 'settings' && role === 'admin') {
+    return <SettingsPage onBack={() => navigate('dashboard')} onNavigate={navigate} />
   }
   if (page === 'quote') {
     return <QuotePage quoteId={activeQuoteId} onBack={() => navigate('dashboard')} onNavigate={navigate} />

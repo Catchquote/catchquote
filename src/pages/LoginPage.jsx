@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 
-export default function LoginPage({ onSwitchToSignup }) {
+export default function LoginPage() {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -72,13 +72,7 @@ export default function LoginPage({ onSwitchToSignup }) {
         </div>
 
         <p className="text-center text-sm text-gray-500 mt-5">
-          Don&apos;t have an account?{' '}
-          <button
-            onClick={onSwitchToSignup}
-            className="text-brand-600 hover:text-brand-700 font-medium"
-          >
-            Sign up free
-          </button>
+          Contact <a href="mailto:thedeepestwithin@gmail.com" className="text-brand-600 hover:text-brand-700 font-medium">thedeepestwithin@gmail.com</a> to get access.
         </p>
       </div>
     </div>

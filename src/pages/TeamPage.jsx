@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 const ROLE_LABELS = { admin: 'Admin', sales_designer: 'Sales Designer' }
 
 export default function TeamPage({ onBack, onNavigate }) {
-  const { user, workspace } = useAuth()
+  const { user, workspace, isTrial } = useAuth()
   const [members, setMembers] = useState([])
   const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)
@@ -79,40 +79,55 @@ export default function TeamPage({ onBack, onNavigate }) {
           <p className="text-sm text-gray-500 mt-1">{workspace.name}</p>
         </div>
 
-        {/* Invite form */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="font-semibold text-gray-800 mb-1">Invite Team Member</h2>
-          <p className="text-xs text-gray-400 mb-4">
-            They'll join your workspace automatically when they sign up with this email address.
-          </p>
-          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="email"
-              required
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              placeholder="colleague@example.com"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            />
-            <select
-              value={inviteRole}
-              onChange={e => setInviteRole(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="sales_designer">Sales Designer</option>
-              <option value="admin">Admin</option>
-            </select>
+        {/* Invite form / trial lock */}
+        {isTrial ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="font-semibold text-yellow-800 text-sm">Team members require a Pro plan</p>
+              <p className="text-xs text-yellow-600 mt-0.5">Upgrade to invite colleagues to your workspace.</p>
+            </div>
             <button
-              type="submit"
-              disabled={inviting}
-              className="shrink-0 px-5 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
+              onClick={() => onNavigate?.('pricing')}
+              className="shrink-0 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-semibold rounded-lg transition-colors"
             >
-              {inviting ? 'Sending…' : 'Send Invite'}
+              View Pricing
             </button>
-          </form>
-          {inviteError   && <p className="mt-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{inviteError}</p>}
-          {inviteSuccess && <p className="mt-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg">{inviteSuccess}</p>}
-        </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <h2 className="font-semibold text-gray-800 mb-1">Invite Team Member</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              They'll join your workspace automatically when they sign up with this email address.
+            </p>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                required
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                placeholder="colleague@example.com"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              />
+              <select
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="sales_designer">Sales Designer</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button
+                type="submit"
+                disabled={inviting}
+                className="shrink-0 px-5 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {inviting ? 'Sending…' : 'Send Invite'}
+              </button>
+            </form>
+            {inviteError   && <p className="mt-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{inviteError}</p>}
+            {inviteSuccess && <p className="mt-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg">{inviteSuccess}</p>}
+          </div>
+        )}
 
         {/* Current members */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">

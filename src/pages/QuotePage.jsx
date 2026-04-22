@@ -8,6 +8,7 @@ import { useQuote } from '../hooks/useQuote.js'
 import { exportQuotePDF } from '../utils/pdfExport.js'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { TRIAL_QUOTE_LIMIT } from '../context/AuthContext.jsx'
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
@@ -31,7 +32,7 @@ const defaultMeta = {
 }
 
 export default function QuotePage({ quoteId, onBack, onNavigate }) {
-  const { user, workspace } = useAuth()
+  const { user, workspace, isTrial } = useAuth()
   const [quote, setQuote] = useState(defaultMeta)
   const [savedQuoteId, setSavedQuoteId] = useState(quoteId || null)
   const [pageLoading, setPageLoading] = useState(!!quoteId)
@@ -99,6 +100,19 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
     setSaveError('')
 
     try {
+      // Trial limit check — only for new quotes (not edits)
+      if (!savedQuoteId && isTrial) {
+        const { count, error: countErr } = await supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', workspace.id)
+        if (!countErr && count >= TRIAL_QUOTE_LIMIT) {
+          setSaveError(`Trial limit reached (${TRIAL_QUOTE_LIMIT} quotes). Upgrade to Pro to save more quotes.`)
+          setSaving(false)
+          return
+        }
+      }
+
       const quotePayload = {
         user_id:      user.id,
         workspace_id: workspace.id,

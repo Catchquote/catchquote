@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Header from '../components/layout/Header.jsx'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { TRIAL_QUOTE_LIMIT } from '../context/AuthContext.jsx'
 
 const STATUS_STYLES = {
   draft:    'bg-gray-100 text-gray-500',
@@ -19,7 +20,7 @@ function capitalize(s) {
 }
 
 export default function Dashboard({ onOpenQuote, onNavigate }) {
-  const { user, workspace, role } = useAuth()
+  const { user, workspace, role, isTrial } = useAuth()
   const [quotes, setQuotes] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -41,12 +42,46 @@ export default function Dashboard({ onOpenQuote, onNavigate }) {
   const accepted = quotes.filter(q => q.status === 'accepted')
   const pending  = quotes.filter(q => q.status === 'sent')
   const revenue  = accepted.reduce((s, q) => s + (q.total || 0), 0)
+  const trialRemaining = Math.max(0, TRIAL_QUOTE_LIMIT - quotes.length)
+  const trialExhausted = isTrial && quotes.length >= TRIAL_QUOTE_LIMIT
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        {/* Trial banner */}
+        {isTrial && (
+          <div className={`mb-6 rounded-xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+            trialExhausted
+              ? 'bg-red-50 border border-red-200'
+              : 'bg-yellow-50 border border-yellow-200'
+          }`}>
+            <div>
+              <p className={`text-sm font-semibold ${trialExhausted ? 'text-red-700' : 'text-yellow-800'}`}>
+                {trialExhausted
+                  ? 'Trial limit reached — upgrade to create more quotes'
+                  : `Trial plan: ${quotes.length} of ${TRIAL_QUOTE_LIMIT} quotes used`}
+              </p>
+              <p className={`text-xs mt-0.5 ${trialExhausted ? 'text-red-500' : 'text-yellow-600'}`}>
+                {trialExhausted
+                  ? 'You have used all your trial quotes.'
+                  : `${trialRemaining} quote${trialRemaining !== 1 ? 's' : ''} remaining on your free trial.`}
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate?.('pricing')}
+              className={`shrink-0 text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${
+                trialExhausted
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+              }`}
+            >
+              Upgrade to Pro
+            </button>
+          </div>
+        )}
+
         {/* Hero */}
         <div className="bg-gradient-to-br from-brand-700 to-brand-500 rounded-2xl p-8 mb-8 text-white shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -57,8 +92,10 @@ export default function Dashboard({ onOpenQuote, onNavigate }) {
               <p className="text-brand-100 text-sm">Create professional renovation quotes in minutes.</p>
             </div>
             <button
-              onClick={() => onOpenQuote(null)}
-              className="shrink-0 flex items-center gap-2 bg-white text-brand-700 hover:bg-brand-50 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow"
+              onClick={() => !trialExhausted && onOpenQuote(null)}
+              disabled={trialExhausted}
+              title={trialExhausted ? 'Upgrade to Pro to create more quotes' : undefined}
+              className="shrink-0 flex items-center gap-2 bg-white text-brand-700 hover:bg-brand-50 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -90,12 +127,14 @@ export default function Dashboard({ onOpenQuote, onNavigate }) {
             <h2 className="font-semibold text-gray-800 text-sm">
               {role === 'admin' ? 'All Quotes' : 'My Quotes'}
             </h2>
-            <button
-              onClick={() => onOpenQuote(null)}
-              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-            >
-              + New Quote
-            </button>
+            {!trialExhausted && (
+              <button
+                onClick={() => onOpenQuote(null)}
+                className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+              >
+                + New Quote
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -156,19 +195,21 @@ export default function Dashboard({ onOpenQuote, onNavigate }) {
           )}
         </div>
 
-        {/* Upgrade CTA */}
-        <div className="mt-6 bg-gradient-to-r from-gray-900 to-gray-700 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
-          <div>
-            <p className="font-semibold">Unlock unlimited quotes with CatchQuote Pro</p>
-            <p className="text-gray-400 text-xs mt-0.5">Includes client portal, e-signature, and custom branding.</p>
+        {/* Upgrade CTA — only for trial users */}
+        {isTrial && (
+          <div className="mt-6 bg-gradient-to-r from-gray-900 to-gray-700 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
+            <div>
+              <p className="font-semibold">Unlock unlimited quotes with CatchQuote Pro</p>
+              <p className="text-gray-400 text-xs mt-0.5">Unlimited quotes, team members, and priority support.</p>
+            </div>
+            <button
+              onClick={() => onNavigate?.('pricing')}
+              className="shrink-0 bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+            >
+              View Pricing
+            </button>
           </div>
-          <button
-            className="shrink-0 bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
-            title="Stripe subscription — coming soon"
-          >
-            Upgrade to Pro
-          </button>
-        </div>
+        )}
       </main>
     </div>
   )

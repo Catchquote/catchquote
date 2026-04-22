@@ -3,54 +3,55 @@ import { supabase } from '../lib/supabase.js'
 
 const AuthContext = createContext(null)
 
-// How long to wait between retries when workspace isn't found yet
-const RETRY_DELAYS_MS = [800, 1600, 3000]
-// Absolute max time before we give up and show an error
-const LOAD_TIMEOUT_MS = 12000
+export const SUPER_ADMIN_EMAIL = 'thedeepestwithin@gmail.com'
+export const TRIAL_QUOTE_LIMIT = 3
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms))
-}
+const RETRY_DELAYS_MS = [800, 1600, 3000]
+const HARD_TIMEOUT_MS = 10000
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
 export function AuthProvider({ children }) {
-  const [user, setUser]                     = useState(null)
-  const [workspace, setWorkspace]           = useState(null)
-  const [role, setRole]                     = useState(null)
-  const [loading, setLoading]               = useState(true)
-  const [workspaceError, setWorkspaceError] = useState(null) // null | string
+  const [user,           setUser]           = useState(null)
+  const [workspace,      setWorkspace]      = useState(null)
+  const [role,           setRole]           = useState(null)
+  const [loading,        setLoading]        = useState(true)
+  const [workspaceError, setWorkspaceError] = useState(null)
 
-  // Lets us abort stale loadMembership calls when the user changes
   const activeUserId = useRef(null)
 
-  async function loadMembership(userId) {
+  // Loads workspace membership for a regular (non-super-admin) user.
+  // Super admin bypasses this entirely — they have no workspace_members row.
+  async function loadMembership(userId, userEmail) {
+    if (userEmail === SUPER_ADMIN_EMAIL) {
+      setWorkspace(null)
+      setRole(null)
+      setWorkspaceError(null)
+      return
+    }
+
     activeUserId.current = userId
     setWorkspaceError(null)
 
-    // Try immediately, then retry with backoff.
-    // The DB trigger that creates the workspace is synchronous, but on brand-new
-    // accounts there can be a brief propagation delay before RLS lets the query land.
     const attempts = [0, ...RETRY_DELAYS_MS]
 
     for (let i = 0; i < attempts.length; i++) {
-      if (activeUserId.current !== userId) return // user changed, abort
-
+      if (activeUserId.current !== userId) return
       if (attempts[i] > 0) await sleep(attempts[i])
-
       if (activeUserId.current !== userId) return
 
       const { data, error } = await supabase
         .from('workspace_members')
-        .select('role, workspaces(id, name, owner_id)')
+        .select('role, workspaces(id, name, owner_id, account_type, is_active)')
         .eq('user_id', userId)
         .maybeSingle()
 
       if (activeUserId.current !== userId) return
 
       if (error) {
-        // Real DB/RLS/network error — stop retrying, surface it
         setWorkspaceError(
           `Could not load workspace: ${error.message}. ` +
-          'Make sure you have run the Supabase migrations (001_initial.sql and 002_workspace_roles.sql).'
+          'Make sure migrations 001–005 have been run in Supabase.'
         )
         setWorkspace(null)
         setRole(null)
@@ -63,16 +64,13 @@ export function AuthProvider({ children }) {
         setWorkspaceError(null)
         return
       }
-
-      // data === null — workspace not provisioned yet, keep retrying
+      // data is null — no membership row yet, retry
     }
 
-    // All retries exhausted and still no workspace
+    // All retries exhausted
     if (activeUserId.current === userId) {
       setWorkspaceError(
-        'Your account was created but your workspace was not set up. ' +
-        'This usually means the Supabase trigger failed. ' +
-        'Check that migration 002_workspace_roles.sql was run in the Supabase dashboard.'
+        'Workspace not found. Check that migrations 001–005 were run in Supabase.'
       )
       setWorkspace(null)
       setRole(null)
@@ -84,60 +82,56 @@ export function AuthProvider({ children }) {
     setWorkspace(null)
     setRole(null)
     setWorkspaceError(null)
-    await loadMembership(user.id)
+    await loadMembership(user.id, user.email)
   }
 
   useEffect(() => {
     let mounted = true
 
-    // Absolute timeout — if something hangs we still escape the loading screen
-    const timeout = setTimeout(() => {
-      if (mounted) {
-        setLoading(false)
-        setWorkspaceError(
-          'Loading timed out. Check your internet connection and try refreshing.'
-        )
-      }
-    }, LOAD_TIMEOUT_MS)
-
-    async function init() {
-      try {
-        const { data, error } = await supabase.auth.getSession()
-        if (!mounted) return
-
-        if (error) {
-          console.error('getSession error:', error)
-          return
-        }
-
-        const u = data.session?.user ?? null
-        setUser(u)
-        if (u) await loadMembership(u.id)
-      } catch (err) {
-        console.error('Auth init error:', err)
-      } finally {
-        if (mounted) {
-          clearTimeout(timeout)
-          setLoading(false)
-        }
-      }
+    // resolved guards setLoading(false) so it fires exactly once,
+    // regardless of how many auth events fire.
+    let resolved = false
+    function resolveLoading() {
+      if (resolved) return
+      resolved = true
+      clearTimeout(timeout)
+      if (mounted) setLoading(false)
     }
 
-    init()
+    // Hard 10-second timeout — always breaks out of loading
+    const timeout = setTimeout(() => {
+      if (mounted && !resolved) {
+        resolved = true
+        setLoading(false)
+        setWorkspaceError('Loading timed out. Check your internet connection and refresh the page.')
+      }
+    }, HARD_TIMEOUT_MS)
 
+    // Single source of truth: onAuthStateChange fires INITIAL_SESSION immediately
+    // in supabase-js v2, so we don't need a separate init() call.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted) return
+
         const u = session?.user ?? null
         setUser(u)
 
-        if (u) {
-          await loadMembership(u.id)
-        } else {
-          activeUserId.current = null
-          setWorkspace(null)
-          setRole(null)
-          setWorkspaceError(null)
+        try {
+          if (u) {
+            await loadMembership(u.id, u.email)
+          } else {
+            activeUserId.current = null
+            setWorkspace(null)
+            setRole(null)
+            setWorkspaceError(null)
+          }
+        } catch (err) {
+          console.error('Auth state change error:', err)
+          if (mounted) {
+            setWorkspaceError('An unexpected error occurred. Please refresh.')
+          }
+        } finally {
+          resolveLoading()
         }
       }
     )
@@ -154,27 +148,27 @@ export function AuthProvider({ children }) {
     return error
   }
 
-  async function signUp(email, password) {
-    const { error } = await supabase.auth.signUp({ email, password })
-    return error
-  }
-
   async function signOut() {
     activeUserId.current = null
+    setWorkspace(null)
+    setRole(null)
+    setWorkspaceError(null)
     await supabase.auth.signOut()
   }
+
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL
+  const isTrial      = workspace?.account_type !== 'pro'
 
   return (
     <AuthContext.Provider value={{
       user, workspace, role,
       loading, workspaceError,
-      signIn, signUp, signOut, retryWorkspace,
+      isSuperAdmin, isTrial,
+      signIn, signOut, retryWorkspace,
     }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
-  return useContext(AuthContext)
-}
+export function useAuth() { return useContext(AuthContext) }

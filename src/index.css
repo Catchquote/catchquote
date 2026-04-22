@@ -18,6 +18,18 @@
   }
 }
 
+/* Reusable modal form primitives */
+.modal-label {
+  @apply block text-xs font-medium text-gray-500 mb-1.5;
+}
+.modal-input {
+  @apply w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-white
+         focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+         placeholder-gray-300 transition-shadow;
+}
+textarea.modal-input { @apply resize-none; }
+select.modal-input   { @apply cursor-pointer; }
+
 /* Brand orange overrides — replaces Tailwind-generated blue brand palette */
 .bg-brand-50  { background-color: #fff7ed !important; }
 .bg-brand-100 { background-color: #ffedd5 !important; }

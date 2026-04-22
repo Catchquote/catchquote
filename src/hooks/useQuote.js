@@ -20,7 +20,14 @@ export function useQuote(initialItems = []) {
   const addItem = useCallback((preset = null) => {
     setItems(prev => [
       ...prev,
-      preset ? { ...preset, id: uuidv4(), qty: 1 } : emptyItem(),
+      preset ? { ...preset, id: uuidv4(), qty: preset.qty ?? 1 } : emptyItem(),
+    ])
+  }, [])
+
+  const addItems = useCallback((presets) => {
+    setItems(prev => [
+      ...prev,
+      ...presets.map(p => ({ ...p, id: uuidv4(), qty: p.qty ?? 1 })),
     ])
   }, [])
 
@@ -38,6 +45,10 @@ export function useQuote(initialItems = []) {
     setItems(newItems)
   }, [])
 
+  const resetItems = useCallback(newItems => {
+    setItems(newItems.length ? newItems : [emptyItem()])
+  }, [])
+
   const subtotal = items.reduce((sum, item) => {
     return sum + (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0)
   }, 0)
@@ -48,9 +59,11 @@ export function useQuote(initialItems = []) {
   return {
     items,
     addItem,
+    addItems,
     updateItem,
     removeItem,
     reorderItems,
+    resetItems,
     subtotal,
     gst,
     total,

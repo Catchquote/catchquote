@@ -27,12 +27,44 @@ function Field({ label, hint, children }) {
   )
 }
 
+function SaveBar({ saving, msg, label, disabled }) {
+  const isError = msg?.startsWith('Error')
+  return (
+    <div className="flex items-center justify-end gap-3 pt-2">
+      {msg && (
+        <span className={`flex items-center gap-1.5 text-sm font-medium ${isError ? 'text-red-500' : 'text-green-600'}`}>
+          {!isError && (
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          )}
+          {msg}
+        </span>
+      )}
+      <button
+        type="submit"
+        disabled={saving || disabled}
+        className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
+      >
+        {saving && (
+          <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+        )}
+        {saving ? 'Saving…' : label}
+      </button>
+    </div>
+  )
+}
+
 const input = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent'
 const textarea = `${input} resize-y min-h-[100px]`
 
 export default function SettingsPage({ onBack, onNavigate }) {
   const { workspace } = useAuth()
-  const [settings, setSettings] = useState({
+
+  const [branding, setBranding] = useState({
     company_name:         '',
     company_logo_url:     '',
     brand_colour:         '#ea580c',
@@ -43,17 +75,21 @@ export default function SettingsPage({ onBack, onNavigate }) {
     company_registration: '',
     designer_name:        '',
     designer_position:    '',
-    terms_and_conditions: '',
     footer_message:       'Thank you for your business.',
   })
-  const [loading,      setLoading]      = useState(true)
-  const [saving,       setSaving]       = useState(false)
-  const [saveMsg,      setSaveMsg]      = useState('')
-  const [savingTc,     setSavingTc]     = useState(false)
-  const [saveTcMsg,    setSaveTcMsg]    = useState('')
+  const [tc, setTc] = useState('')
+
+  const [loading,       setLoading]       = useState(true)
+  const [savingBrand,   setSavingBrand]   = useState(false)
+  const [brandMsg,      setBrandMsg]      = useState('')
+  const [savingTc,      setSavingTc]      = useState(false)
+  const [tcMsg,         setTcMsg]         = useState('')
   const [logoUploading, setLogoUploading] = useState(false)
-  const [logoError,    setLogoError]    = useState('')
-  const logoInputRef   = useRef(null)
+  const [logoError,     setLogoError]     = useState('')
+  const logoInputRef = useRef(null)
+
+  // track if either save is running so the other can show as disabled
+  const anySaving = savingBrand || savingTc
 
   useEffect(() => {
     async function load() {
@@ -63,93 +99,78 @@ export default function SettingsPage({ onBack, onNavigate }) {
         .eq('workspace_id', workspace.id)
         .maybeSingle()
       if (data) {
-        setSettings(prev => ({
-          ...prev,
-          company_name:         data.company_name         ?? prev.company_name,
-          company_logo_url:     data.company_logo_url     ?? prev.company_logo_url,
-          brand_colour:         data.brand_colour         ?? prev.brand_colour,
-          tagline:              data.tagline              ?? prev.tagline,
-          company_address:      data.company_address      ?? prev.company_address,
-          company_phone:        data.company_phone        ?? prev.company_phone,
-          company_email:        data.company_email        ?? prev.company_email,
-          company_registration: data.company_registration ?? prev.company_registration,
-          designer_name:        data.designer_name        ?? prev.designer_name,
-          designer_position:    data.designer_position    ?? prev.designer_position,
-          terms_and_conditions: data.terms_and_conditions ?? prev.terms_and_conditions,
-          footer_message:       data.footer_message       ?? prev.footer_message,
-        }))
+        setBranding({
+          company_name:         data.company_name         ?? '',
+          company_logo_url:     data.company_logo_url     ?? '',
+          brand_colour:         data.brand_colour         ?? '#ea580c',
+          tagline:              data.tagline              ?? '',
+          company_address:      data.company_address      ?? '',
+          company_phone:        data.company_phone        ?? '',
+          company_email:        data.company_email        ?? '',
+          company_registration: data.company_registration ?? '',
+          designer_name:        data.designer_name        ?? '',
+          designer_position:    data.designer_position    ?? '',
+          footer_message:       data.footer_message       ?? 'Thank you for your business.',
+        })
+        setTc(data.terms_and_conditions ?? '')
       }
       setLoading(false)
     }
     load()
   }, [workspace.id])
 
-  function set(field) {
-    return e => setSettings(prev => ({ ...prev, [field]: e.target.value }))
+  function setBrand(field) {
+    return e => setBranding(prev => ({ ...prev, [field]: e.target.value }))
   }
 
-  async function handleSave(e) {
+  function flashMsg(setMsg, msg) {
+    setMsg(msg)
+    setTimeout(() => setMsg(''), 6000)
+  }
+
+  async function handleSaveBranding(e) {
     e.preventDefault()
-    console.log('[Settings] handleSave called')
-    setSaving(true)
-    setSaveMsg('')
+    if (savingBrand || savingTc) return
+    setSavingBrand(true)
+    setBrandMsg('')
+    console.log('[Settings] saving branding fields')
 
     try {
-      const brandingPayload = {
-        workspace_id:         workspace.id,
-        company_name:         settings.company_name,
-        company_logo_url:     settings.company_logo_url,
-        brand_colour:         settings.brand_colour,
-        tagline:              settings.tagline,
-        company_address:      settings.company_address,
-        company_phone:        settings.company_phone,
-        company_email:        settings.company_email,
-        company_registration: settings.company_registration,
-        designer_name:        settings.designer_name,
-        designer_position:    settings.designer_position,
-        footer_message:       settings.footer_message,
-      }
-      console.log('[Settings] upserting branding fields:', brandingPayload)
-
-      const { error: brandErr } = await Promise.race([
-        supabase.from('workspace_settings').upsert(brandingPayload, { onConflict: 'workspace_id' }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timed out — Supabase may still be waking up. Try again in a moment.')), 20000)
-        ),
-      ])
-      if (brandErr) throw new Error(brandErr.message)
+      const payload = { workspace_id: workspace.id, ...branding }
+      const { error } = await supabase
+        .from('workspace_settings')
+        .upsert(payload, { onConflict: 'workspace_id' })
+      if (error) throw new Error(error.message)
       console.log('[Settings] branding save OK')
-
-      setSaveMsg('Settings saved.')
+      flashMsg(setBrandMsg, 'Saved.')
     } catch (err) {
-      console.error('[Settings] save error:', err)
-      setSaveMsg(`Error: ${err.message}`)
+      console.error('[Settings] branding save error:', err)
+      flashMsg(setBrandMsg, `Error: ${err.message}`)
     } finally {
-      setSaving(false)
-      setTimeout(() => setSaveMsg(''), 6000)
+      setSavingBrand(false)
     }
   }
 
-  async function handleSaveTc() {
+  async function handleSaveTc(e) {
+    e.preventDefault()
+    if (savingBrand || savingTc) return
     setSavingTc(true)
-    setSaveTcMsg('')
-    console.log('[Settings] saving T&C, length:', settings.terms_and_conditions?.length)
+    setTcMsg('')
+    console.log('[Settings] saving T&C, length:', tc?.length)
 
     try {
       const { error } = await supabase
         .from('workspace_settings')
-        .update({ terms_and_conditions: settings.terms_and_conditions })
+        .update({ terms_and_conditions: tc })
         .eq('workspace_id', workspace.id)
-
       if (error) throw new Error(error.message)
       console.log('[Settings] T&C save OK')
-      setSaveTcMsg('Saved.')
+      flashMsg(setTcMsg, 'Saved.')
     } catch (err) {
       console.error('[Settings] T&C save error:', err)
-      setSaveTcMsg(`Error: ${err.message}`)
+      flashMsg(setTcMsg, `Error: ${err.message}`)
     } finally {
       setSavingTc(false)
-      setTimeout(() => setSaveTcMsg(''), 6000)
     }
   }
 
@@ -164,10 +185,9 @@ export default function SettingsPage({ onBack, onNavigate }) {
     setLogoUploading(true)
     setLogoError('')
 
-    const ext      = file.name.split('.').pop()
-    const path     = `${workspace.id}/logo.${ext}`
+    const ext  = file.name.split('.').pop()
+    const path = `${workspace.id}/logo.${ext}`
 
-    // Remove old logo first (ignore errors — may not exist)
     await supabase.storage.from(BUCKET).remove([path])
 
     const { error: uploadErr } = await supabase.storage
@@ -181,15 +201,13 @@ export default function SettingsPage({ onBack, onNavigate }) {
     }
 
     const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    // Bust the browser cache with a timestamp query param
     const urlWithCache = `${publicUrl}?t=${Date.now()}`
-    setSettings(prev => ({ ...prev, company_logo_url: urlWithCache }))
+    setBranding(prev => ({ ...prev, company_logo_url: urlWithCache }))
     setLogoUploading(false)
   }
 
   async function handleRemoveLogo() {
-    setSettings(prev => ({ ...prev, company_logo_url: '' }))
-    // Best-effort removal from storage; errors are non-critical
+    setBranding(prev => ({ ...prev, company_logo_url: '' }))
     const exts = ['png', 'jpg', 'jpeg', 'webp', 'svg']
     await Promise.all(
       exts.map(ext => supabase.storage.from(BUCKET).remove([`${workspace.id}/logo.${ext}`]))
@@ -217,17 +235,16 @@ export default function SettingsPage({ onBack, onNavigate }) {
           <p className="text-sm text-gray-500 mt-1">{workspace.name}</p>
         </div>
 
-        <form onSubmit={handleSave} noValidate>
-          {/* ── Company branding ── */}
+        {/* ── Branding form ── */}
+        <form onSubmit={handleSaveBranding} noValidate>
           <Section title="Company Branding" description="Used on quotes and PDFs.">
 
-            {/* Logo */}
             <Field label="Company Logo" hint="PNG, JPG, WebP or SVG · max 2 MB">
               <div className="flex items-start gap-4">
-                {settings.company_logo_url ? (
+                {branding.company_logo_url ? (
                   <div className="relative shrink-0">
                     <img
-                      src={settings.company_logo_url}
+                      src={branding.company_logo_url}
                       alt="Company logo"
                       className="h-16 w-auto max-w-[160px] rounded-lg border border-gray-200 object-contain bg-white p-1"
                     />
@@ -252,7 +269,7 @@ export default function SettingsPage({ onBack, onNavigate }) {
                     disabled={logoUploading}
                     className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    {logoUploading ? 'Uploading…' : settings.company_logo_url ? 'Replace logo' : 'Upload logo'}
+                    {logoUploading ? 'Uploading…' : branding.company_logo_url ? 'Replace logo' : 'Upload logo'}
                   </button>
                   {logoError && <p className="text-xs text-red-500">{logoError}</p>}
                 </div>
@@ -266,122 +283,86 @@ export default function SettingsPage({ onBack, onNavigate }) {
               </div>
             </Field>
 
-            {/* Company name */}
             <Field label="Company Name">
-              <input className={input} value={settings.company_name} onChange={set('company_name')} placeholder="Smith Renovations Pty Ltd" />
+              <input className={input} value={branding.company_name} onChange={setBrand('company_name')} placeholder="Smith Renovations Pty Ltd" />
             </Field>
 
-            {/* Brand colour */}
             <Field label="Brand Primary Colour">
               <div className="flex items-center gap-3">
                 <input
                   type="color"
-                  value={settings.brand_colour}
-                  onChange={set('brand_colour')}
+                  value={branding.brand_colour}
+                  onChange={setBrand('brand_colour')}
                   className="h-10 w-14 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white"
                 />
                 <input
                   type="text"
-                  value={settings.brand_colour}
-                  onChange={set('brand_colour')}
-                  pattern="^#[0-9a-fA-F]{6}$"
+                  value={branding.brand_colour}
+                  onChange={setBrand('brand_colour')}
                   placeholder="#ea580c"
                   className="w-32 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono"
                 />
               </div>
             </Field>
 
-            {/* Tagline */}
             <Field label="Tagline / Slogan">
-              <input className={input} value={settings.tagline} onChange={set('tagline')} placeholder="Quality renovations, delivered on time." />
+              <input className={input} value={branding.tagline} onChange={setBrand('tagline')} placeholder="Quality renovations, delivered on time." />
             </Field>
 
-            {/* Two-column contact fields */}
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Company Phone">
-                <input className={input} value={settings.company_phone} onChange={set('company_phone')} placeholder="+61 400 000 000" />
+                <input className={input} value={branding.company_phone} onChange={setBrand('company_phone')} placeholder="+65 9000 0000" />
               </Field>
               <Field label="Company Email">
-                <input type="email" className={input} value={settings.company_email} onChange={set('company_email')} placeholder="info@smithreno.com.au" />
+                <input type="email" className={input} value={branding.company_email} onChange={setBrand('company_email')} placeholder="info@company.com.sg" />
               </Field>
             </div>
 
             <Field label="Company Address">
-              <input className={input} value={settings.company_address} onChange={set('company_address')} placeholder="123 Main St, Sydney NSW 2000" />
+              <input className={input} value={branding.company_address} onChange={setBrand('company_address')} placeholder="1 Raffles Place, #01-01, Singapore 048616" />
             </Field>
 
-            <Field label="Company Registration Number" hint="ABN, ACN, or other registration number">
-              <input className={input} value={settings.company_registration} onChange={set('company_registration')} placeholder="12 345 678 901" />
+            <Field label="Company Registration Number" hint="UEN or other registration number">
+              <input className={input} value={branding.company_registration} onChange={setBrand('company_registration')} placeholder="202312345A" />
             </Field>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Designer Name" hint="Appears on quote PDF signature block">
-                <input className={input} value={settings.designer_name} onChange={set('designer_name')} placeholder="Jane Smith" />
+                <input className={input} value={branding.designer_name} onChange={setBrand('designer_name')} placeholder="Jane Smith" />
               </Field>
               <Field label="Designer Position">
-                <input className={input} value={settings.designer_position} onChange={set('designer_position')} placeholder="Interior Designer" />
+                <input className={input} value={branding.designer_position} onChange={setBrand('designer_position')} placeholder="Interior Designer" />
               </Field>
             </div>
           </Section>
 
-          {/* ── Quote footer ── */}
-          <Section title="Quote Footer" description="Appears at the bottom of every quote PDF.">
+          <Section title="Quote Footer" description="Footer message on every quote PDF.">
             <Field label="Footer Message">
-              <input className={input} value={settings.footer_message} onChange={set('footer_message')} placeholder="Thank you for your business." />
+              <input className={input} value={branding.footer_message} onChange={setBrand('footer_message')} placeholder="Thank you for your business." />
             </Field>
+          </Section>
+
+          <SaveBar saving={savingBrand} msg={brandMsg} label="Save Branding" disabled={anySaving && !savingBrand} />
+        </form>
+
+        {/* ── T&C form ── */}
+        <form onSubmit={handleSaveTc} noValidate className="mt-8">
+          <Section title="Terms &amp; Conditions" description="Printed on the final page of every quote PDF.">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Terms &amp; Conditions</label>
               <textarea
                 className={textarea}
-                value={settings.terms_and_conditions}
-                onChange={set('terms_and_conditions')}
-                rows={10}
+                value={tc}
+                onChange={e => setTc(e.target.value)}
+                rows={12}
                 placeholder={"1. All prices are in SGD and include GST where applicable.\n2. A 30% deposit is required upon acceptance.\n3. This quote is valid for 30 days from the date issued.\n4. …"}
               />
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-gray-400">
-                  {(settings.terms_and_conditions || '').length.toLocaleString()} characters
-                </p>
-                <div className="flex items-center gap-3">
-                  {saveTcMsg && (
-                    <p className={`text-xs font-medium ${saveTcMsg.startsWith('Error') ? 'text-red-500' : 'text-green-600'}`}>
-                      {saveTcMsg}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSaveTc}
-                    disabled={savingTc}
-                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    {savingTc ? (
-                      <>
-                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                        </svg>
-                        Saving…
-                      </>
-                    ) : 'Save Terms & Conditions'}
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-gray-400 mt-1.5 text-right">
+                {tc.length.toLocaleString()} characters
+              </p>
             </div>
           </Section>
 
-          {/* Save bar */}
-          <div className="flex items-center justify-between gap-4 py-4">
-            <p className={`text-sm font-medium transition-opacity ${saveMsg ? 'opacity-100' : 'opacity-0'} ${saveMsg.startsWith('Error') ? 'text-red-500' : 'text-green-600'}`}>
-              {saveMsg || '—'}
-            </p>
-            <button
-              type="submit"
-              disabled={saving || logoUploading}
-              className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              {saving ? 'Saving…' : 'Save Settings'}
-            </button>
-          </div>
+          <SaveBar saving={savingTc} msg={tcMsg} label="Save Terms & Conditions" disabled={anySaving && !savingTc} />
         </form>
       </main>
     </div>

@@ -46,12 +46,14 @@ export default function SettingsPage({ onBack, onNavigate }) {
     terms_and_conditions: '',
     footer_message:       'Thank you for your business.',
   })
-  const [loading,     setLoading]     = useState(true)
-  const [saving,      setSaving]      = useState(false)
-  const [saveMsg,     setSaveMsg]     = useState('')
+  const [loading,      setLoading]      = useState(true)
+  const [saving,       setSaving]       = useState(false)
+  const [saveMsg,      setSaveMsg]      = useState('')
+  const [savingTc,     setSavingTc]     = useState(false)
+  const [saveTcMsg,    setSaveTcMsg]    = useState('')
   const [logoUploading, setLogoUploading] = useState(false)
-  const [logoError,   setLogoError]   = useState('')
-  const logoInputRef  = useRef(null)
+  const [logoError,    setLogoError]    = useState('')
+  const logoInputRef   = useRef(null)
 
   useEffect(() => {
     async function load() {
@@ -116,18 +118,7 @@ export default function SettingsPage({ onBack, onNavigate }) {
         ),
       ])
       if (brandErr) throw new Error(brandErr.message)
-      console.log('[Settings] branding save OK, now saving T&C...')
-
-      const { error: tcErr } = await Promise.race([
-        supabase.from('workspace_settings')
-          .update({ terms_and_conditions: settings.terms_and_conditions })
-          .eq('workspace_id', workspace.id),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('T&C save timed out.')), 20000)
-        ),
-      ])
-      if (tcErr) throw new Error(tcErr.message)
-      console.log('[Settings] T&C save OK')
+      console.log('[Settings] branding save OK')
 
       setSaveMsg('Settings saved.')
     } catch (err) {
@@ -136,6 +127,29 @@ export default function SettingsPage({ onBack, onNavigate }) {
     } finally {
       setSaving(false)
       setTimeout(() => setSaveMsg(''), 6000)
+    }
+  }
+
+  async function handleSaveTc() {
+    setSavingTc(true)
+    setSaveTcMsg('')
+    console.log('[Settings] saving T&C, length:', settings.terms_and_conditions?.length)
+
+    try {
+      const { error } = await supabase
+        .from('workspace_settings')
+        .update({ terms_and_conditions: settings.terms_and_conditions })
+        .eq('workspace_id', workspace.id)
+
+      if (error) throw new Error(error.message)
+      console.log('[Settings] T&C save OK')
+      setSaveTcMsg('Saved.')
+    } catch (err) {
+      console.error('[Settings] T&C save error:', err)
+      setSaveTcMsg(`Error: ${err.message}`)
+    } finally {
+      setSavingTc(false)
+      setTimeout(() => setSaveTcMsg(''), 6000)
     }
   }
 
@@ -315,18 +329,44 @@ export default function SettingsPage({ onBack, onNavigate }) {
             <Field label="Footer Message">
               <input className={input} value={settings.footer_message} onChange={set('footer_message')} placeholder="Thank you for your business." />
             </Field>
-            <Field label="Terms &amp; Conditions">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Terms &amp; Conditions</label>
               <textarea
                 className={textarea}
                 value={settings.terms_and_conditions}
                 onChange={set('terms_and_conditions')}
-                rows={6}
-                placeholder={"1. All prices are in AUD and include GST where applicable.\n2. A 30% deposit is required upon acceptance.\n3. This quote is valid for 30 days from the date issued.\n4. …"}
+                rows={10}
+                placeholder={"1. All prices are in SGD and include GST where applicable.\n2. A 30% deposit is required upon acceptance.\n3. This quote is valid for 30 days from the date issued.\n4. …"}
               />
-              <p className="text-xs text-gray-400 mt-1 text-right">
-                {(settings.terms_and_conditions || '').length.toLocaleString()} characters
-              </p>
-            </Field>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-gray-400">
+                  {(settings.terms_and_conditions || '').length.toLocaleString()} characters
+                </p>
+                <div className="flex items-center gap-3">
+                  {saveTcMsg && (
+                    <p className={`text-xs font-medium ${saveTcMsg.startsWith('Error') ? 'text-red-500' : 'text-green-600'}`}>
+                      {saveTcMsg}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveTc}
+                    disabled={savingTc}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    {savingTc ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                        Saving…
+                      </>
+                    ) : 'Save Terms & Conditions'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </Section>
 
           {/* Save bar */}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function LoginPage() {
-  const { signIn } = useAuth()
+  const { signIn, sessionExpiredMsg } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,6 +28,12 @@ export default function LoginPage() {
           </svg>
           <span className="font-bold text-gray-900 text-xl">CatchQuote</span>
         </div>
+
+        {sessionExpiredMsg && (
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            {sessionExpiredMsg}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
           <h1 className="text-xl font-bold text-gray-900 mb-1">Welcome back</h1>

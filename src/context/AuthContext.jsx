@@ -6,19 +6,26 @@ const AuthContext = createContext(null)
 export const SUPER_ADMIN_EMAIL = 'thedeepestwithin@gmail.com'
 export const TRIAL_QUOTE_LIMIT = 3
 
-const RETRY_DELAYS_MS = [800, 1600, 3000]
-const HARD_TIMEOUT_MS = 10000
+const RETRY_DELAYS_MS             = [800, 1600, 3000]
+const HARD_TIMEOUT_MS             = 10000
+const KEEPALIVE_INTERVAL_MS       = 4 * 60 * 1000  // 4 minutes — prevents Supabase free tier sleep
+const PROACTIVE_REFRESH_BUFFER_MS = 60 * 1000       // refresh 60s before token expiry
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
 export function AuthProvider({ children }) {
-  const [user,           setUser]           = useState(null)
-  const [workspace,      setWorkspace]      = useState(null)
-  const [role,           setRole]           = useState(null)
-  const [loading,        setLoading]        = useState(true)
-  const [workspaceError, setWorkspaceError] = useState(null)
+  const [user,              setUser]              = useState(null)
+  const [workspace,         setWorkspace]         = useState(null)
+  const [role,              setRole]              = useState(null)
+  const [loading,           setLoading]           = useState(true)
+  const [workspaceError,    setWorkspaceError]    = useState(null)
+  const [sessionExpiredMsg, setSessionExpiredMsg] = useState(null)
 
-  const activeUserId = useRef(null)
+  const activeUserId       = useRef(null)
+  const intentionalSignOut = useRef(false)  // true only when signOut() is called deliberately
+  const wasAuthenticated   = useRef(false)  // tracks whether a session was active
+  const refreshTimerRef    = useRef(null)
+  const keepaliveRef       = useRef(null)
 
   // Loads workspace membership for a regular (non-super-admin) user.
   // Super admin bypasses this entirely — they have no workspace_members row.
@@ -85,11 +92,43 @@ export function AuthProvider({ children }) {
     await loadMembership(user.id, user.email)
   }
 
+  // Schedules a proactive token refresh 60s before the session expires.
+  // Supabase already auto-refreshes, but this is belt-and-suspenders.
+  function scheduleProactiveRefresh(session) {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+    if (!session?.expires_at) return
+
+    const msUntilExpiry = session.expires_at * 1000 - Date.now()
+    const refreshIn     = Math.max(msUntilExpiry - PROACTIVE_REFRESH_BUFFER_MS, 0)
+
+    refreshTimerRef.current = setTimeout(async () => {
+      const { error } = await supabase.auth.refreshSession()
+      if (error) console.warn('Proactive token refresh failed:', error.message)
+      // supabase fires SIGNED_OUT on unrecoverable failure, which we handle below
+    }, refreshIn)
+  }
+
+  // Lightweight ping to prevent Supabase free tier from sleeping.
+  function startKeepalive() {
+    if (keepaliveRef.current) return  // already running — don't reset the interval
+    keepaliveRef.current = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      await supabase.from('workspace_settings').select('id').limit(1)
+    }, KEEPALIVE_INTERVAL_MS)
+  }
+
+  function stopKeepalive() {
+    if (keepaliveRef.current) {
+      clearInterval(keepaliveRef.current)
+      keepaliveRef.current = null
+    }
+  }
+
   useEffect(() => {
     let mounted = true
 
-    // resolved guards setLoading(false) so it fires exactly once,
-    // regardless of how many auth events fire.
+    // resolveLoading fires exactly once regardless of how many auth events arrive
     let resolved = false
     function resolveLoading() {
       if (resolved) return
@@ -116,20 +155,31 @@ export function AuthProvider({ children }) {
         const u = session?.user ?? null
         setUser(u)
 
-        try {
-          if (u) {
-            await loadMembership(u.id, u.email)
-          } else {
-            activeUserId.current = null
-            setWorkspace(null)
-            setRole(null)
-            setWorkspaceError(null)
+        if (u) {
+          wasAuthenticated.current = true
+          scheduleProactiveRefresh(session)
+          startKeepalive()
+          setSessionExpiredMsg(null)
+        } else {
+          // Distinguish an unexpected sign-out (token expiry) from a deliberate one
+          if (wasAuthenticated.current && !intentionalSignOut.current) {
+            setSessionExpiredMsg('Your session expired, please log in again')
           }
+          wasAuthenticated.current   = false
+          intentionalSignOut.current = false
+          clearTimeout(refreshTimerRef.current)
+          stopKeepalive()
+          activeUserId.current = null
+          setWorkspace(null)
+          setRole(null)
+          setWorkspaceError(null)
+        }
+
+        try {
+          if (u) await loadMembership(u.id, u.email)
         } catch (err) {
           console.error('Auth state change error:', err)
-          if (mounted) {
-            setWorkspaceError('An unexpected error occurred. Please refresh.')
-          }
+          if (mounted) setWorkspaceError('An unexpected error occurred. Please refresh.')
         } finally {
           resolveLoading()
         }
@@ -139,20 +189,26 @@ export function AuthProvider({ children }) {
     return () => {
       mounted = false
       clearTimeout(timeout)
+      clearTimeout(refreshTimerRef.current)
+      stopKeepalive()
       subscription.unsubscribe()
     }
   }, [])
 
   async function signIn(email, password) {
+    setSessionExpiredMsg(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return error
   }
 
   async function signOut() {
+    intentionalSignOut.current = true
     activeUserId.current = null
     setWorkspace(null)
     setRole(null)
     setWorkspaceError(null)
+    clearTimeout(refreshTimerRef.current)
+    stopKeepalive()
     await supabase.auth.signOut()
   }
 
@@ -164,6 +220,7 @@ export function AuthProvider({ children }) {
       user, workspace, role,
       loading, workspaceError,
       isSuperAdmin, isTrial,
+      sessionExpiredMsg,
       signIn, signOut, retryWorkspace,
     }}>
       {children}

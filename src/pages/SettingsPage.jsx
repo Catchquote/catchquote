@@ -91,16 +91,28 @@ export default function SettingsPage({ onBack, onNavigate }) {
     setSaving(true)
     setSaveMsg('')
 
-    const payload = { workspace_id: workspace.id, ...settings }
+    try {
+      const payload = { workspace_id: workspace.id, ...settings }
 
-    // Upsert — insert on first save, update on subsequent saves
-    const { error } = await supabase
-      .from('workspace_settings')
-      .upsert(payload, { onConflict: 'workspace_id' })
+      // Race against a 20s timeout — free-tier Supabase can be slow to wake
+      const { error } = await Promise.race([
+        supabase.from('workspace_settings').upsert(payload, { onConflict: 'workspace_id' }),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Request timed out — Supabase may still be waking up. Try again in a moment.')),
+            20000
+          )
+        ),
+      ])
 
-    setSaving(false)
-    setSaveMsg(error ? `Error: ${error.message}` : 'Settings saved.')
-    setTimeout(() => setSaveMsg(''), 3000)
+      if (error) throw new Error(error.message)
+      setSaveMsg('Settings saved.')
+    } catch (err) {
+      setSaveMsg(`Error: ${err.message}`)
+    } finally {
+      setSaving(false)
+      setTimeout(() => setSaveMsg(''), 6000)
+    }
   }
 
   async function handleLogoUpload(e) {

@@ -1,226 +1,491 @@
 import jsPDF from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 
-const BRAND    = [234, 88, 12]    // #ea580c
-const DARK     = [17, 24, 39]     // gray-900
-const MID_GRAY = [107, 114, 128]  // gray-500
-const LIGHT    = [249, 250, 251]  // gray-50
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const SIG_H         = 38   // height reserved for signature block (mm)
-const SIG_MARGIN    = 14   // side margin
-const FOOTER_Y_PAD  = 6    // gap between page content and CatchQuote footer line
-
-function fmt(n) {
-  return `$${Number(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+function hexToRgb(hex) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return r ? [parseInt(r[1], 16), parseInt(r[2], 16), parseInt(r[3], 16)] : [234, 88, 12]
 }
 
+function fmtMoney(n, currency = 'SGD') {
+  return `${currency} ${Number(n).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d)) return iso
+  return d.toLocaleDateString('en-SG', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+async function loadImageAsDataUrl(url) {
+  try {
+    const resp = await fetch(url)
+    const blob = await resp.blob()
+    return await new Promise((res, rej) => {
+      const reader = new FileReader()
+      reader.onload  = () => res(reader.result)
+      reader.onerror = rej
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+function imgFormat(dataUrl) {
+  if (!dataUrl) return 'PNG'
+  if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) return 'JPEG'
+  if (dataUrl.startsWith('data:image/webp')) return 'WEBP'
+  return 'PNG'
+}
+
+// ── Palette ────────────────────────────────────────────────────────────────────
+
+const DARK       = [17,  24,  39]
+const MID_GRAY   = [107, 114, 128]
+const LIGHT_GRAY = [249, 250, 251]
+const WHITE      = [255, 255, 255]
+const RULE_COLOR = [229, 231, 235]
+
+const MARGIN        = 14
+const SIG_HEIGHT    = 34
+const FOOTER_H      = 7
+const BOTTOM_MARGIN = SIG_HEIGHT + FOOTER_H + 2
+
+// ── Signature block ────────────────────────────────────────────────────────────
+
 function drawSignatureBlock(doc, pageW, pageH, clientName, settings, isLastPage) {
-  const sigTop = pageH - SIG_H - 10   // 10mm above absolute bottom
-  const midX   = pageW / 2
+  const blockTop = pageH - SIG_HEIGHT - FOOTER_H
+  const midX     = pageW / 2
 
-  // Extra breathing room on last page for physical signing
-  const blockTop = isLastPage ? sigTop - 8 : sigTop
+  doc.setDrawColor(...RULE_COLOR)
+  doc.setLineWidth(0.35)
+  doc.line(MARGIN, blockTop, pageW - MARGIN, blockTop)
 
-  // Divider line
-  doc.setDrawColor(220, 220, 220)
-  doc.setLineWidth(0.4)
-  doc.line(SIG_MARGIN, blockTop, pageW - SIG_MARGIN, blockTop)
+  let y = blockTop + 5
 
   // LEFT — Prepared by
-  let y = blockTop + 6
-  doc.setFontSize(7)
+  doc.setFontSize(6.5)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...MID_GRAY)
-  doc.text('PREPARED BY', SIG_MARGIN, y)
+  doc.text('PREPARED BY', MARGIN, y)
 
-  doc.setFontSize(9)
+  doc.setFontSize(8.5)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...DARK)
-  doc.text(settings?.designer_name || '', SIG_MARGIN, y + 5)
+  doc.text(settings?.designer_name || '', MARGIN, y + 4.5)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.setFontSize(7.5)
   doc.setTextColor(...MID_GRAY)
-  doc.text(settings?.designer_position || '', SIG_MARGIN, y + 10)
+  doc.text(settings?.designer_position || '', MARGIN, y + 9)
 
-  // Signature line + label
-  const lineY = y + (isLastPage ? 20 : 16)
+  const sigLineY = y + (isLastPage ? 17 : 13)
   doc.setDrawColor(...MID_GRAY)
-  doc.setLineWidth(0.3)
-  doc.line(SIG_MARGIN, lineY, midX - 8, lineY)
-  doc.setFontSize(7)
-  doc.text('Signature', SIG_MARGIN, lineY + 3.5)
+  doc.setLineWidth(0.25)
+  doc.line(MARGIN, sigLineY, midX - 10, sigLineY)
+  doc.setFontSize(6.5)
+  doc.text('Signature & Date', MARGIN, sigLineY + 3)
 
-  const dateY = lineY + 7
-  doc.line(SIG_MARGIN, dateY, midX - 8, dateY)
-  doc.text('Date', SIG_MARGIN, dateY + 3.5)
-
-  // RIGHT — Confirmed & Accepted by
-  const rx = midX + 4
-  doc.setFontSize(7)
+  // RIGHT — Confirmed by
+  const rx = midX + 6
+  doc.setFontSize(6.5)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...MID_GRAY)
   doc.text('CONFIRMED & ACCEPTED BY', rx, y)
 
-  doc.setFontSize(9)
+  doc.setFontSize(8.5)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...DARK)
-  doc.text(clientName || '', rx, y + 5)
+  doc.text(clientName || '', rx, y + 4.5)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...MID_GRAY)
+  doc.text('Client', rx, y + 9)
+
+  doc.setDrawColor(...MID_GRAY)
+  doc.setLineWidth(0.25)
+  doc.line(rx, sigLineY, pageW - MARGIN, sigLineY)
+  doc.setFontSize(6.5)
+  doc.text('Signature & Date', rx, sigLineY + 3)
+}
+
+// ── Page footer ────────────────────────────────────────────────────────────────
+
+function drawPageFooter(doc, pageNum, total, pageW, pageH) {
+  doc.setFontSize(7)
+  doc.setTextColor(...MID_GRAY)
+  doc.setFont('helvetica', 'normal')
+  doc.text(
+    `Generated by CatchQuote · catchquote.io    Page ${pageNum} of ${total}`,
+    pageW / 2, pageH - 2.5, { align: 'center' }
+  )
+}
+
+// ── Main export ────────────────────────────────────────────────────────────────
+
+export async function exportQuotePDF({
+  quote, areas, itemsByArea, areaSubtotals,
+  subtotal, gst, gstEnabled, total,
+  settings,
+}) {
+  const doc   = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()   // 210
+  const pageH = doc.internal.pageSize.getHeight()  // 297
+
+  const BRAND    = hexToRgb(settings?.brand_colour || '#ea580c')
+  const currency = quote.currency || 'SGD'
+
+  // Load logo (best-effort)
+  let logoDataUrl = null
+  if (settings?.company_logo_url) {
+    logoDataUrl = await loadImageAsDataUrl(settings.company_logo_url).catch(() => null)
+  }
+
+  // ── PAGE 1: COMPANY HEADER ──────────────────────────────────────────────────
+
+  // Brand top strip
+  doc.setFillColor(...BRAND)
+  doc.rect(0, 0, pageW, 2.5, 'F')
+
+  // ── Left column: logo + company details ──────────────────────────────────────
+
+  const LOGO_H    = 14   // mm tall for logo
+  const LEFT_COL  = 105  // mm wide (left half of page)
+
+  let leftY = 8  // start just below brand strip
+
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, imgFormat(logoDataUrl), MARGIN, leftY, 0, LOGO_H)
+      leftY += LOGO_H + 3
+    } catch { /* corrupt image — skip */ }
+  }
+
+  // Company name
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.setTextColor(...DARK)
+  doc.text(settings?.company_name || 'Company Name', MARGIN, leftY + 1)
+  leftY += 5.5
+
+  // Tagline
+  if (settings?.tagline) {
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(8)
+    doc.setTextColor(...MID_GRAY)
+    doc.text(settings.tagline, MARGIN, leftY)
+    leftY += 4.5
+  }
+
+  // Contact line (address · phone · email) — wrapped to left column width
+  const contactParts = [
+    settings?.company_address,
+    settings?.company_phone,
+    settings?.company_email,
+  ].filter(Boolean)
+
+  if (contactParts.length) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...MID_GRAY)
+    const lines = doc.splitTextToSize(contactParts.join('   ·   '), LEFT_COL - MARGIN - 4)
+    doc.text(lines, MARGIN, leftY)
+    leftY += lines.length * 4
+  }
+
+  // Registration number
+  if (settings?.company_registration) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...MID_GRAY)
+    doc.text(`Reg: ${settings.company_registration}`, MARGIN, leftY)
+    leftY += 4
+  }
+
+  // ── Right column: QUOTATION + quote meta ─────────────────────────────────────
+
+  const rx     = pageW - MARGIN
+  let rightY   = 9
+
+  // "QUOTATION" heading
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(...BRAND)
+  doc.text('QUOTATION', rx, rightY + 6, { align: 'right' })
+  rightY += 13
+
+  // Quote detail rows
+  const qdLabelX = rx - 50
+  const metaRows = [
+    ['Quote No.',  quote.quoteNumber  || '—'],
+    ['Date',       fmtDate(quote.date)],
+    ['Valid Until',fmtDate(quote.validUntil)],
+    ['Currency',   currency],
+  ]
+
+  for (const [label, value] of metaRows) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...MID_GRAY)
+    doc.text(label, qdLabelX, rightY)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...DARK)
+    doc.text(value, rx, rightY, { align: 'right' })
+    rightY += 5.5
+  }
+
+  // ── Separator ──────────────────────────────────────────────────────────────────
+
+  const sepY = Math.max(leftY, rightY) + 3
+  doc.setDrawColor(...RULE_COLOR)
+  doc.setLineWidth(0.4)
+  doc.line(MARGIN, sepY, pageW - MARGIN, sepY)
+
+  // ── Client + Project block ─────────────────────────────────────────────────────
+
+  let billY   = sepY + 6
+  const col2X = pageW / 2 + 6
+  let projY   = sepY + 6
+
+  // BILL TO (left)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(6.5)
+  doc.setTextColor(...MID_GRAY)
+  doc.text('BILL TO', MARGIN, billY)
+  billY += 4
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...DARK)
+  doc.text(quote.clientName || '—', MARGIN, billY)
+  billY += 5
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...MID_GRAY)
-  doc.text('Client', rx, y + 10)
-
-  doc.setDrawColor(...MID_GRAY)
-  doc.setLineWidth(0.3)
-  doc.line(rx, lineY, pageW - SIG_MARGIN, lineY)
-  doc.setFontSize(7)
-  doc.text('Signature', rx, lineY + 3.5)
-
-  doc.line(rx, dateY, pageW - SIG_MARGIN, dateY)
-  doc.text('Date', rx, dateY + 3.5)
-}
-
-function drawPageFooter(doc, pageNum, totalPages, pageW, pageH) {
-  doc.setFontSize(7.5)
-  doc.setTextColor(...MID_GRAY)
-  doc.setFont('helvetica', 'normal')
-  doc.text(
-    `Generated by CatchQuote · catchquote.io    Page ${pageNum} of ${totalPages}`,
-    pageW / 2,
-    pageH - 5,
-    { align: 'center' }
-  )
-}
-
-export function exportQuotePDF({ quote, items, subtotal, gst, total, settings }) {
-  const doc   = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const pageW = doc.internal.pageSize.getWidth()
-  const pageH = doc.internal.pageSize.getHeight()
-
-  // ── Page 1 header ────────────────────────────────────────────────────────────
-  doc.setFillColor(...BRAND)
-  doc.rect(0, 0, pageW, 42, 'F')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(22)
-  doc.setTextColor(255, 255, 255)
-  doc.text('CatchQuote', 14, 18)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(186, 230, 253)
-  doc.text('Renovation Quotation Software', 14, 26)
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(28)
-  doc.setTextColor(255, 255, 255)
-  doc.text('QUOTATION', pageW - 14, 24, { align: 'right' })
-
-  // ── Meta band ────────────────────────────────────────────────────────────────
-  doc.setFillColor(...LIGHT)
-  doc.rect(0, 42, pageW, 38, 'F')
-
-  const metaY = 52
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...DARK)
-  doc.text('CLIENT', 14, metaY)
-  doc.setFont('helvetica', 'normal')
-  doc.text(quote.clientName    || '—', 14, metaY + 5)
-  doc.text(quote.clientEmail   || '',  14, metaY + 10)
-  doc.text(quote.clientAddress || '',  14, metaY + 15)
-
-  const col2 = pageW - 14
-  doc.setFont('helvetica', 'bold')
-  doc.text('Quote No.',  col2 - 40, metaY)
-  doc.text('Date',       col2 - 40, metaY + 7)
-  doc.text('Valid Until',col2 - 40, metaY + 14)
-  doc.setFont('helvetica', 'normal')
-  doc.text(quote.quoteNumber || '—', col2, metaY,      { align: 'right' })
-  doc.text(quote.date        || new Date().toLocaleDateString('en-AU'), col2, metaY + 7,  { align: 'right' })
-  doc.text(quote.validUntil  || '—', col2, metaY + 14, { align: 'right' })
-
-  if (quote.projectTitle) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.setTextColor(...BRAND)
-    doc.text(`Project: ${quote.projectTitle}`, 14, 86)
+  for (const line of [quote.clientEmail, quote.clientContact, quote.clientAddress].filter(Boolean)) {
+    doc.text(line, MARGIN, billY)
+    billY += 4
   }
 
-  // ── Line items table ──────────────────────────────────────────────────────────
-  // bottomMargin reserves space for signature block + footer on every page
-  const bottomMargin = SIG_H + 18
+  // Project address (right)
+  if (quote.projectAddress) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.5)
+    doc.setTextColor(...MID_GRAY)
+    doc.text('PROJECT ADDRESS', col2X, projY)
+    projY += 4
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...DARK)
+    const pLines = doc.splitTextToSize(quote.projectAddress, pageW - MARGIN - col2X)
+    doc.text(pLines, col2X, projY)
+    projY += pLines.length * 4 + 3
+  }
 
-  autoTable(doc, {
-    startY: quote.projectTitle ? 92 : 86,
-    head:   [['#', 'Category', 'Description', 'Unit', 'Qty', 'Unit Price', 'Amount']],
-    body: items.map((item, i) => [
-      i + 1,
-      item.category,
-      item.description,
-      item.unit,
-      item.qty,
-      fmt(item.unitPrice),
-      fmt((parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0)),
-    ]),
-    styles:             { fontSize: 9, cellPadding: 3, textColor: DARK },
-    headStyles:         { fillColor: BRAND, textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [255, 247, 237] },
-    columnStyles: {
-      0: { cellWidth: 8,  halign: 'center' },
-      3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 12, halign: 'right' },
-      5: { cellWidth: 22, halign: 'right' },
-      6: { cellWidth: 26, halign: 'right' },
-    },
-    margin: { left: 14, right: 14, bottom: bottomMargin },
-  })
+  // Sales designer (right)
+  const designerName = quote.designerName || settings?.designer_name
+  if (designerName) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.5)
+    doc.setTextColor(...MID_GRAY)
+    doc.text('SALES DESIGNER', col2X, projY)
+    projY += 4
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...DARK)
+    doc.text(designerName, col2X, projY)
+    projY += 4
+  }
 
-  const afterTable = doc.lastAutoTable.finalY + 6
+  // Content starts below the client block
+  let contentY = Math.max(billY, projY) + 8
 
-  // ── Totals block ─────────────────────────────────────────────────────────────
-  const totalsX = pageW - 70
-  const totalsW = 56
-  const rowH    = 8
+  // ── AREAS OF WORKS ─────────────────────────────────────────────────────────────
 
-  doc.setFillColor(240, 249, 255)
-  doc.roundedRect(totalsX - 6, afterTable, totalsW + 6, rowH * 3 + 4, 2, 2, 'F')
+  for (const areaName of areas) {
+    const areaItems = itemsByArea.get(areaName) ?? []
+    if (areaItems.length === 0) continue
 
-  doc.setFontSize(9.5)
+    const areaSubtotal = areaSubtotals.get(areaName) ?? 0
+
+    // Force new page if little space left (header bar + at least one row)
+    if (contentY + 30 > pageH - BOTTOM_MARGIN) {
+      doc.addPage()
+      contentY = 12
+    }
+
+    // Area header bar
+    doc.setFillColor(...BRAND)
+    doc.roundedRect(MARGIN, contentY, pageW - MARGIN * 2, 7.5, 1, 1, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...WHITE)
+    doc.text(areaName.toUpperCase(), MARGIN + 4, contentY + 5.2)
+    contentY += 9.5
+
+    // Build table body: category sub-headers + item rows + area subtotal
+    const tableBody = []
+    let lastCat     = null
+
+    for (const item of areaItems) {
+      if (item.category !== lastCat) {
+        lastCat = item.category
+        tableBody.push([{
+          content:  item.category,
+          colSpan:  5,
+          styles: {
+            fillColor:   [241, 245, 249],
+            fontStyle:   'bold',
+            fontSize:    7.5,
+            textColor:   MID_GRAY,
+            cellPadding: { top: 2.5, bottom: 2.5, left: 5, right: 5 },
+          },
+        }])
+      }
+      const lineTotal = (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0)
+      tableBody.push([
+        item.description || '',
+        item.unit        || '',
+        String(item.qty  ?? ''),
+        Number(item.unitPrice).toLocaleString('en-SG', { minimumFractionDigits: 2 }),
+        Number(lineTotal).toLocaleString('en-SG',      { minimumFractionDigits: 2 }),
+      ])
+    }
+
+    // Subtotal row for the area
+    tableBody.push([
+      { content: `${areaName} Subtotal`, colSpan: 4,
+        styles: { fontStyle: 'bold', halign: 'right', fillColor: LIGHT_GRAY, textColor: DARK } },
+      { content: Number(areaSubtotal).toLocaleString('en-SG', { minimumFractionDigits: 2 }),
+        styles: { fontStyle: 'bold', halign: 'right', fillColor: LIGHT_GRAY, textColor: DARK } },
+    ])
+
+    autoTable(doc, {
+      startY:  contentY,
+      head:    [['Description', 'Unit', 'Qty', 'Unit Price', 'Amount']],
+      body:    tableBody,
+      styles: {
+        fontSize:    8.5,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 },
+        textColor:   DARK,
+        lineColor:   [243, 244, 246],
+        lineWidth:   0.2,
+      },
+      headStyles: {
+        fillColor:  [248, 250, 252],
+        textColor:  MID_GRAY,
+        fontStyle:  'bold',
+        fontSize:   7.5,
+        lineWidth:  0,
+      },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 15, halign: 'center'  },
+        2: { cellWidth: 13, halign: 'right'   },
+        3: { cellWidth: 26, halign: 'right'   },
+        4: { cellWidth: 28, halign: 'right'   },
+      },
+      alternateRowStyles: { fillColor: WHITE },
+      margin: { left: MARGIN, right: MARGIN, bottom: BOTTOM_MARGIN },
+    })
+
+    contentY = doc.lastAutoTable.finalY + 8
+  }
+
+  // ── TOTALS BLOCK ──────────────────────────────────────────────────────────────
+
+  const totalsNeeded = (gstEnabled ? 3 : 2) * 6 + 12
+  if (contentY + totalsNeeded > pageH - BOTTOM_MARGIN) {
+    doc.addPage()
+    contentY = 14
+  }
+
+  const labelX = pageW - MARGIN - 68
+
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...MID_GRAY)
-  doc.text('Subtotal (excl. GST)', totalsX, afterTable + rowH * 0.8)
-  doc.text(`GST (${(0.1 * 100).toFixed(0)}%)`, totalsX, afterTable + rowH * 1.8)
-
+  doc.text('Subtotal', labelX, contentY)
   doc.setTextColor(...DARK)
-  doc.text(fmt(subtotal), pageW - 14, afterTable + rowH * 0.8, { align: 'right' })
-  doc.text(fmt(gst),      pageW - 14, afterTable + rowH * 1.8, { align: 'right' })
+  doc.text(fmtMoney(subtotal, currency), pageW - MARGIN, contentY, { align: 'right' })
+  contentY += 6
 
-  const totalRowY = afterTable + rowH * 2.2
+  if (gstEnabled) {
+    doc.setTextColor(...MID_GRAY)
+    doc.text('GST (9%)', labelX, contentY)
+    doc.setTextColor(...DARK)
+    doc.text(fmtMoney(gst, currency), pageW - MARGIN, contentY, { align: 'right' })
+    contentY += 6
+  }
+
+  doc.setDrawColor(...RULE_COLOR)
+  doc.setLineWidth(0.35)
+  doc.line(labelX - 2, contentY - 1.5, pageW - MARGIN, contentY - 1.5)
+
+  const totalH = 9
   doc.setFillColor(...BRAND)
-  doc.roundedRect(totalsX - 6, totalRowY, totalsW + 6, rowH + 2, 2, 2, 'F')
+  doc.roundedRect(labelX - 4, contentY, pageW - MARGIN - labelX + 6, totalH, 1, 1, 'F')
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10.5)
-  doc.setTextColor(255, 255, 255)
-  doc.text('TOTAL (incl. GST)', totalsX, totalRowY + rowH * 0.72)
-  doc.text(fmt(total), pageW - 14, totalRowY + rowH * 0.72, { align: 'right' })
+  doc.setFontSize(10)
+  doc.setTextColor(...WHITE)
+  doc.text(`TOTAL (${currency})`, labelX, contentY + 6)
+  doc.text(fmtMoney(total, currency), pageW - MARGIN, contentY + 6, { align: 'right' })
+  contentY += totalH + 6
 
-  // ── Notes ────────────────────────────────────────────────────────────────────
+  // ── NOTES ─────────────────────────────────────────────────────────────────────
+
   if (quote.notes) {
-    const notesY = totalRowY + rowH + 14
+    if (contentY + 20 > pageH - BOTTOM_MARGIN) {
+      doc.addPage()
+      contentY = 14
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...DARK)
+    doc.text('Notes', MARGIN, contentY)
+    contentY += 5
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...MID_GRAY)
+    for (const line of doc.splitTextToSize(quote.notes, pageW - MARGIN * 2)) {
+      if (contentY + 5 > pageH - BOTTOM_MARGIN) { doc.addPage(); contentY = 14 }
+      doc.text(line, MARGIN, contentY)
+      contentY += 4.5
+    }
+  }
+
+  // ── TERMS & CONDITIONS (dedicated last page) ──────────────────────────────────
+
+  if (settings?.terms_and_conditions) {
+    doc.addPage()
+    let tcY = 14
+
+    doc.setFillColor(...BRAND)
+    doc.roundedRect(MARGIN, tcY, pageW - MARGIN * 2, 8, 1, 1, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
-    doc.setTextColor(...DARK)
-    doc.text('Notes', 14, notesY)
+    doc.setTextColor(...WHITE)
+    doc.text('TERMS & CONDITIONS', MARGIN + 4, tcY + 5.5)
+    tcY += 13
+
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...MID_GRAY)
-    const lines = doc.splitTextToSize(quote.notes, pageW - 28)
-    doc.text(lines, 14, notesY + 5)
+    doc.setFontSize(8)
+    doc.setTextColor(55, 65, 81)
+
+    for (const line of doc.splitTextToSize(settings.terms_and_conditions, pageW - MARGIN * 2)) {
+      if (tcY + 5 > pageH - BOTTOM_MARGIN) { doc.addPage(); tcY = 14 }
+      doc.text(line, MARGIN, tcY)
+      tcY += 4.5
+    }
   }
 
-  // ── Per-page: signature block + footer ───────────────────────────────────────
+  // ── PER-PAGE: signature + footer ──────────────────────────────────────────────
+
   const totalPages = doc.internal.getNumberOfPages()
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p)
@@ -228,6 +493,6 @@ export function exportQuotePDF({ quote, items, subtotal, gst, total, settings })
     drawPageFooter(doc, p, totalPages, pageW, pageH)
   }
 
-  const filename = `quote-${(quote.quoteNumber || 'draft').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`
-  doc.save(filename)
+  const safeName = (quote.quoteNumber || 'quote').replace(/[^a-z0-9]/gi, '-').toLowerCase()
+  doc.save(`${safeName}.pdf`)
 }

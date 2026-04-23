@@ -1,8 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { CATEGORIES } from '../../data/presetItems.js'
-
-const UNITS = ['item', 'm²', 'lm', 'm³', 'hr', 'day', 'set', 'lot', 'point', 'trip']
+import { UNITS } from '../../constants/units.js'
 
 export default function LineItemRow({ item, colGrid, onUpdate, onRemove }) {
   const {
@@ -59,7 +58,7 @@ export default function LineItemRow({ item, colGrid, onUpdate, onRemove }) {
         onChange={e => onUpdate(item.id, 'unit', e.target.value)}
         className="text-xs border border-gray-200 rounded-md px-1.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-700"
       >
-        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+        {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
       </select>
 
       {/* Qty */}

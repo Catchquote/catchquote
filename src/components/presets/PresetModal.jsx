@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { CATEGORIES } from '../../data/presetItems.js'
-
-const UNITS = ['item', 'm²', 'lm', 'm³', 'hr', 'day', 'set', 'lot', 'point', 'trip']
+import { UNITS, unitLabel } from '../../constants/units.js'
 
 const BLANK = {
   category: 'General Labour',
   contractor_name: '',
   description: '',
-  unit: 'item',
+  unit: 'unit',
   cost_price: '',
   selling_price: '',
   notes: '',
@@ -36,7 +35,7 @@ function MarginDisplay({ cost, sell, unit }) {
     <span className={`text-sm font-semibold ${color}`}>
       {pct.toFixed(1)}% margin &nbsp;·&nbsp;
       <span className="font-normal text-gray-500">
-        ${profit.toFixed(2)} profit per {unit || 'item'}
+        ${profit.toFixed(2)} profit per {unitLabel(unit) || 'unit'}
       </span>
     </span>
   )
@@ -143,7 +142,7 @@ export default function PresetModal({ preset, onSave, onClose }) {
             <div>
               <label className="modal-label">Unit</label>
               <select value={form.unit} onChange={e => set('unit', e.target.value)} className="modal-input">
-                {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
             </div>
             <div>

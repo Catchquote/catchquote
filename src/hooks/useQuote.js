@@ -12,7 +12,7 @@ export const DEFAULT_AREA_NAMES = [
 ]
 
 function emptyItem(area = '') {
-  return { id: uuidv4(), area, category: 'General Labour', description: '', unit: 'item', qty: 1, unitPrice: 0 }
+  return { id: uuidv4(), area, category: 'General Labour', description: '', unit: 'unit', qty: 1, unitPrice: 0 }
 }
 
 export function useQuote() {

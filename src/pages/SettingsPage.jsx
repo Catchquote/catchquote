@@ -88,26 +88,50 @@ export default function SettingsPage({ onBack, onNavigate }) {
 
   async function handleSave(e) {
     e.preventDefault()
+    console.log('[Settings] handleSave called')
     setSaving(true)
     setSaveMsg('')
 
     try {
-      const payload = { workspace_id: workspace.id, ...settings }
+      const brandingPayload = {
+        workspace_id:         workspace.id,
+        company_name:         settings.company_name,
+        company_logo_url:     settings.company_logo_url,
+        brand_colour:         settings.brand_colour,
+        tagline:              settings.tagline,
+        company_address:      settings.company_address,
+        company_phone:        settings.company_phone,
+        company_email:        settings.company_email,
+        company_registration: settings.company_registration,
+        designer_name:        settings.designer_name,
+        designer_position:    settings.designer_position,
+        footer_message:       settings.footer_message,
+      }
+      console.log('[Settings] upserting branding fields:', brandingPayload)
 
-      // Race against a 20s timeout — free-tier Supabase can be slow to wake
-      const { error } = await Promise.race([
-        supabase.from('workspace_settings').upsert(payload, { onConflict: 'workspace_id' }),
+      const { error: brandErr } = await Promise.race([
+        supabase.from('workspace_settings').upsert(brandingPayload, { onConflict: 'workspace_id' }),
         new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Request timed out — Supabase may still be waking up. Try again in a moment.')),
-            20000
-          )
+          setTimeout(() => reject(new Error('Request timed out — Supabase may still be waking up. Try again in a moment.')), 20000)
         ),
       ])
+      if (brandErr) throw new Error(brandErr.message)
+      console.log('[Settings] branding save OK, now saving T&C...')
 
-      if (error) throw new Error(error.message)
+      const { error: tcErr } = await Promise.race([
+        supabase.from('workspace_settings')
+          .update({ terms_and_conditions: settings.terms_and_conditions })
+          .eq('workspace_id', workspace.id),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('T&C save timed out.')), 20000)
+        ),
+      ])
+      if (tcErr) throw new Error(tcErr.message)
+      console.log('[Settings] T&C save OK')
+
       setSaveMsg('Settings saved.')
     } catch (err) {
+      console.error('[Settings] save error:', err)
       setSaveMsg(`Error: ${err.message}`)
     } finally {
       setSaving(false)
@@ -179,7 +203,7 @@ export default function SettingsPage({ onBack, onNavigate }) {
           <p className="text-sm text-gray-500 mt-1">{workspace.name}</p>
         </div>
 
-        <form onSubmit={handleSave}>
+        <form onSubmit={handleSave} noValidate>
           {/* ── Company branding ── */}
           <Section title="Company Branding" description="Used on quotes and PDFs.">
 
@@ -299,6 +323,9 @@ export default function SettingsPage({ onBack, onNavigate }) {
                 rows={6}
                 placeholder={"1. All prices are in AUD and include GST where applicable.\n2. A 30% deposit is required upon acceptance.\n3. This quote is valid for 30 days from the date issued.\n4. …"}
               />
+              <p className="text-xs text-gray-400 mt-1 text-right">
+                {(settings.terms_and_conditions || '').length.toLocaleString()} characters
+              </p>
             </Field>
           </Section>
 

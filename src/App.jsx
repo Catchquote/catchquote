@@ -8,6 +8,7 @@ import SettingsPage from './pages/SettingsPage.jsx'
 import PricingPage from './pages/PricingPage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import LandingPage from './pages/LandingPage.jsx'
 
 const Spinner = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -25,6 +26,7 @@ function AppContent() {
   const { user, workspace, role, loading, workspaceError, isSuperAdmin, signOut, retryWorkspace } = useAuth()
   const [page,          setPage]          = useState('dashboard')
   const [activeQuoteId, setActiveQuoteId] = useState(null)
+  const [unauthPage,    setUnauthPage]    = useState('landing')
 
   function navigate(pg) {
     if ((pg === 'team' || pg === 'presets' || pg === 'settings') && role !== 'admin') return
@@ -42,7 +44,12 @@ function AppContent() {
   if (loading) return <Spinner />
 
   // ── Not authenticated ─────────────────────────────────────────────────────────
-  if (!user) return <LoginPage />
+  if (!user) {
+    if (unauthPage === 'login') {
+      return <LoginPage onBack={() => setUnauthPage('landing')} />
+    }
+    return <LandingPage onSignIn={() => setUnauthPage('login')} />
+  }
 
   // ── Super admin: bypass workspace requirement entirely ─────────────────────────
   // Super admin has no workspace_members row — don't gate them on workspace checks.

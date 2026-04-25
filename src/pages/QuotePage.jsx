@@ -57,7 +57,7 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
     async function load() {
       const { data } = await supabase
         .from('workspace_settings')
-        .select('company_name,company_logo_url,brand_colour,tagline,company_address,company_phone,company_email,company_registration,designer_name,designer_position,footer_message,terms_and_conditions')
+        .select('company_name,company_logo_url,brand_colour,tagline,company_address,company_phone,company_email,company_registration,designer_name,designer_position,footer_message,terms_and_conditions,pdf_layout')
         .eq('workspace_id', workspace.id)
         .maybeSingle()
       if (data) setWsSettings(data)

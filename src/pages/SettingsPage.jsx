@@ -76,6 +76,7 @@ export default function SettingsPage({ onBack, onNavigate }) {
     designer_name:        '',
     designer_position:    '',
     footer_message:       'Thank you for your business.',
+    pdf_layout:           'modern',
   })
   const [tc, setTc] = useState('')
 
@@ -111,6 +112,7 @@ export default function SettingsPage({ onBack, onNavigate }) {
           designer_name:        data.designer_name        ?? '',
           designer_position:    data.designer_position    ?? '',
           footer_message:       data.footer_message       ?? 'Thank you for your business.',
+          pdf_layout:           data.pdf_layout           ?? 'modern',
         })
         setTc(data.terms_and_conditions ?? '')
       }
@@ -340,6 +342,41 @@ export default function SettingsPage({ onBack, onNavigate }) {
             <Field label="Footer Message">
               <input className={input} value={branding.footer_message} onChange={setBrand('footer_message')} placeholder="Thank you for your business." />
             </Field>
+          </Section>
+
+          <Section title="PDF Layout" description="Choose the visual style for exported quote PDFs.">
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                {
+                  value: 'modern',
+                  label: 'Modern',
+                  desc: 'Full brand colour header, light section bands, alternating row shading.',
+                },
+                {
+                  value: 'classic',
+                  label: 'Classic',
+                  desc: 'Clean white background, brand colour accents only on headers and totals.',
+                },
+              ].map(({ value, label, desc }) => {
+                const selected = branding.pdf_layout === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setBranding(prev => ({ ...prev, pdf_layout: value }))}
+                    className={`text-left px-4 py-4 rounded-xl border-2 transition-colors ${selected ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? 'border-brand-600' : 'border-gray-300'}`}>
+                        {selected && <div className="w-2 h-2 rounded-full bg-brand-600"/>}
+                      </div>
+                      <span className={`text-sm font-semibold ${selected ? 'text-brand-700' : 'text-gray-700'}`}>{label}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 leading-relaxed pl-6">{desc}</p>
+                  </button>
+                )
+              })}
+            </div>
           </Section>
 
           <SaveBar saving={savingBrand} msg={brandMsg} label="Save Branding" disabled={anySaving && !savingBrand} />

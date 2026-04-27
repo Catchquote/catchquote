@@ -22,7 +22,7 @@ const PRO_FEATURES = [
   'Unlimited quotes',
   'PDF export',
   'Preset library',
-  'Up to 10 team members',
+  'Up to 3 team members',
   'Additional members at $25/user/mo',
   'Priority email support',
   'Custom workspace branding (coming soon)',

@@ -64,7 +64,7 @@ const SIG_H       = 38    // signature block height
 const FOOTER_H    = 7     // footer height
 const RESERVE     = SIG_H + FOOTER_H + 2   // bottom reserve on every page
 const MINI_H      = 10    // detail page mini-header height
-const BAND_H      = 42    // Modern page-1 brand band height
+const BAND_H      = 28    // Modern page-1 brand band height
 
 // ── Signature block ────────────────────────────────────────────────────────────
 
@@ -182,150 +182,163 @@ function sepLine(doc, y, pageW) {
 // ── Page 1 header — Classic ───────────────────────────────────────────────────
 
 function drawPage1Classic(doc, settings, quote, BRAND, logoDataUrl, pageW) {
-  // Thin accent strip
-  doc.setFillColor(...BRAND)
-  doc.rect(0, 0, pageW, 2.5, 'F')
+  const LOGO_H = 16
+  let leftY    = 5
 
-  const LOGO_H = 13
-  let leftY = 7
-
+  // LEFT — logo or company name
   if (logoDataUrl) {
     try {
       doc.addImage(logoDataUrl, imgFormat(logoDataUrl), M, leftY, 0, LOGO_H)
       leftY += LOGO_H + 3
     } catch { /* skip */ }
+  } else {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(...DARK)
+    doc.text(settings?.company_name || '', M, leftY + LOGO_H / 2 + 2.5)
+    leftY += LOGO_H + 3
   }
+
+  // RIGHT — company name + contact details stacked
+  const rx          = pageW - M
+  const lineH       = 4.5
+  const contactParts = [settings?.company_address, settings?.company_phone, settings?.company_email].filter(Boolean)
+  let rightY        = 7
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
+  doc.setFontSize(9)
   doc.setTextColor(...DARK)
-  doc.text(settings?.company_name || '', M, leftY + 1)
-  leftY += 6
+  doc.text(settings?.company_name || '', rx, rightY, { align: 'right' })
+  rightY += lineH + 1
 
-  if (settings?.tagline) {
-    doc.setFont('helvetica', 'italic')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...MID_GRAY)
-    doc.text(settings.tagline, M, leftY)
-    leftY += 4.5
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...MID_GRAY)
+  for (const part of contactParts) {
+    doc.text(part, rx, rightY, { align: 'right' })
+    rightY += lineH
   }
-
-  const contactParts = [settings?.company_address, settings?.company_phone, settings?.company_email].filter(Boolean)
-  if (contactParts.length) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...MID_GRAY)
-    const lines = doc.splitTextToSize(contactParts.join('   ·   '), 95)
-    doc.text(lines, M, leftY)
-    leftY += lines.length * 4
-  }
-
   if (settings?.company_registration) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(...MID_GRAY)
-    doc.text(`Reg: ${settings.company_registration}`, M, leftY)
-    leftY += 4
+    doc.text(`Reg: ${settings.company_registration}`, rx, rightY, { align: 'right' })
+    rightY += lineH
   }
 
-  // Right: QUOTATION + meta
-  const rx = pageW - M
-  let rightY = 8
+  // Thin brand colour underline separating header from body
+  const ruleY = Math.max(leftY, rightY) + 3
+  doc.setDrawColor(...BRAND)
+  doc.setLineWidth(1)
+  doc.line(M, ruleY, pageW - M, ruleY)
+
+  // QUOTATION title + quote meta below
+  let y = ruleY + 9
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(22)
   doc.setTextColor(...BRAND)
-  doc.text('QUOTATION', rx, rightY + 6, { align: 'right' })
-  rightY += 14
+  doc.text('QUOTATION', M, y)
+  y += 4
 
-  const labelX = rx - 54
+  doc.setDrawColor(...RULE)
+  doc.setLineWidth(0.4)
+  doc.line(M, y, pageW - M, y)
+  y += 6
+
   for (const [label, value] of [
-    ['Quote No.', quote.quoteNumber || '—'],
-    ['Date',       fmtDate(quote.date)],
-    ['Valid Until',fmtDate(quote.validUntil)],
-    ['Currency',   quote.currency || 'SGD'],
+    ['QUOTE NO.',   quote.quoteNumber || '—'],
+    ['DATE',        fmtDate(quote.date)],
+    ['VALID UNTIL', fmtDate(quote.validUntil)],
+    ['CURRENCY',    quote.currency || 'SGD'],
   ]) {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
+    doc.setFontSize(7)
     doc.setTextColor(...MID_GRAY)
-    doc.text(label, labelX, rightY)
+    doc.text(label, M, y)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...DARK)
-    doc.text(value, rx, rightY, { align: 'right' })
-    rightY += 5.5
+    doc.text(value, M + 36, y)
+    y += 5
   }
 
-  return Math.max(leftY, rightY) + 2
+  return y + 4
 }
 
 // ── Page 1 header — Modern ────────────────────────────────────────────────────
 
 function drawPage1Modern(doc, settings, quote, BRAND, logoDataUrl, pageW) {
-  // Full-width brand band
+  // ── Brand band ──────────────────────────────────────────────────────────────
   doc.setFillColor(...BRAND)
   doc.rect(0, 0, pageW, BAND_H, 'F')
 
-  const LOGO_H = 14
-  let leftY = 7
+  // LEFT — logo (vertically centred) or company name if no logo
+  const LOGO_H = 18
+  const logoY  = (BAND_H - LOGO_H) / 2
 
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, imgFormat(logoDataUrl), M, leftY, 0, LOGO_H)
-      leftY += LOGO_H + 2
+      doc.addImage(logoDataUrl, imgFormat(logoDataUrl), M, logoY, 0, LOGO_H)
     } catch { /* skip */ }
+  } else {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(...WHITE)
+    doc.text(settings?.company_name || '', M, BAND_H / 2 + 2.5)
   }
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(...WHITE)
-  doc.text(settings?.company_name || '', M, leftY + 1)
-  leftY += 5.5
-
-  if (settings?.tagline) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(255, 210, 185)
-    doc.text(settings.tagline, M, leftY)
-  }
-
-  // Right side
-  const rx = pageW - M
-  let rightY = 9
+  // RIGHT — company name (bold) + address / phone / email stacked, all white
+  const rx           = pageW - M
+  const lineH        = 4.5
+  const contactParts = [settings?.company_address, settings?.company_phone, settings?.company_email].filter(Boolean)
+  const nLines       = 1 + contactParts.length + (settings?.company_registration ? 1 : 0)
+  let rightY         = (BAND_H - nLines * lineH) / 2 + lineH
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(20)
+  doc.setFontSize(9)
   doc.setTextColor(...WHITE)
-  doc.text('QUOTATION', rx, rightY + 5, { align: 'right' })
-  rightY += 12
+  doc.text(settings?.company_name || '', rx, rightY, { align: 'right' })
+  rightY += lineH + 0.5
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(255, 220, 200)
-
-  for (const line of [
-    quote.quoteNumber || '—',
-    fmtDate(quote.date),
-    quote.validUntil ? `Valid: ${fmtDate(quote.validUntil)}` : '',
-    quote.currency || 'SGD',
-  ].filter(Boolean)) {
-    doc.text(line, rx, rightY, { align: 'right' })
-    rightY += 4.5
+  doc.setFontSize(7)
+  doc.setTextColor(...WHITE)
+  for (const part of contactParts) {
+    doc.text(part, rx, rightY, { align: 'right' })
+    rightY += lineH
+  }
+  if (settings?.company_registration) {
+    doc.text(`Reg: ${settings.company_registration}`, rx, rightY, { align: 'right' })
   }
 
-  // Contact strip below band
-  const contactParts = [settings?.company_address, settings?.company_phone, settings?.company_email].filter(Boolean)
-  if (contactParts.length || settings?.company_registration) {
-    doc.setTextColor(...WHITE)
-    doc.setFontSize(6.5)
-    const parts = [...contactParts, settings?.company_registration ? `Reg: ${settings.company_registration}` : null].filter(Boolean)
+  // ── Below band — QUOTATION title + quote meta ───────────────────────────────
+  let y = BAND_H + 9
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(...BRAND)
+  doc.text('QUOTATION', M, y)
+  y += 4
+
+  doc.setDrawColor(...BRAND)
+  doc.setLineWidth(0.6)
+  doc.line(M, y, pageW - M, y)
+  y += 6
+
+  for (const [label, value] of [
+    ['QUOTE NO.',   quote.quoteNumber || '—'],
+    ['DATE',        fmtDate(quote.date)],
+    ['VALID UNTIL', fmtDate(quote.validUntil)],
+    ['CURRENCY',    quote.currency || 'SGD'],
+  ]) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...MID_GRAY)
+    doc.text(label, M, y)
     doc.setFont('helvetica', 'normal')
-    const inBandY = BAND_H - 5
-    const contactLine = doc.splitTextToSize(parts.join('   ·   '), pageW - 2 * M)
-    doc.setTextColor(255, 225, 210)
-    doc.text(contactLine[0] || '', M, inBandY)
+    doc.setTextColor(...DARK)
+    doc.text(value, M + 36, y)
+    y += 5
   }
 
-  return BAND_H + 2
+  return y + 4
 }
 
 // ── Client / project block ─────────────────────────────────────────────────────

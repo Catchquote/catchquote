@@ -94,7 +94,7 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
     async function loadQuote() {
       const [{ data: q }, { data: qItems }] = await Promise.all([
         supabase.from('quotes').select('*').eq('id', quoteId).single(),
-        supabase.from('quote_items').select('*').eq('quote_id', quoteId).order('sort_order'),
+        supabase.from('quote_items').select('*').eq('quote_id', quoteId).order('sort_order', { ascending: true }),
       ])
 
       if (q) {

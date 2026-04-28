@@ -40,8 +40,8 @@ export default function PresetPicker({ areas, defaultArea, onAdd, onClose }) {
         .select('id, category, contractor_name, description, unit, selling_price, unit_price')
         .eq('workspace_id', workspace.id)
         .eq('status', 'active')
-        .order('category')
-        .order('description')
+        .order('category',    { ascending: true })
+        .order('description', { ascending: true })
 
       if (data?.length) {
         const g = {}

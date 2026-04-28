@@ -20,9 +20,9 @@ export default function TeamPage({ onBack, onNavigate }) {
     const [{ data: membersData }, { data: invitesData }] = await Promise.all([
       supabase
         .from('workspace_members')
-        .select('id, role, created_at, user_id, profiles(email)')
+        .select('id, role, created_at, user_id')
         .eq('workspace_id', workspace.id)
-        .order('created_at'),
+        .order('created_at', { ascending: true }),
       supabase
         .from('workspace_invites')
         .select('id, email, role, created_at')
@@ -30,7 +30,23 @@ export default function TeamPage({ onBack, onNavigate }) {
         .eq('status', 'pending')
         .order('created_at', { ascending: false }),
     ])
-    setMembers(membersData || [])
+
+    // Fetch member emails separately — avoids a PostgREST FK join that fails
+    // when workspace_members.user_id references auth.users (not public.profiles)
+    const members = membersData || []
+    if (members.length) {
+      const userIds = members.map(m => m.user_id).filter(Boolean)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds)
+      const profileMap = {}
+      ;(profiles || []).forEach(p => { profileMap[p.id] = p.email })
+      setMembers(members.map(m => ({ ...m, profiles: { email: profileMap[m.user_id] } })))
+    } else {
+      setMembers([])
+    }
+
     setInvites(invitesData || [])
     setLoading(false)
   }

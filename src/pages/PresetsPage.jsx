@@ -138,8 +138,8 @@ export default function PresetsPage({ onBack, onNavigate }) {
       .from('user_presets')
       .select('*')
       .eq('workspace_id', workspace.id)
-      .order('category')
-      .order('description')
+      .order('category',    { ascending: true })
+      .order('description', { ascending: true })
     setPresets(data || [])
     setLoading(false)
   }

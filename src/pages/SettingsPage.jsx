@@ -81,45 +81,62 @@ export default function SettingsPage({ onBack, onNavigate }) {
   const [tc, setTc] = useState('')
 
   const [loading,       setLoading]       = useState(true)
+  const [loadError,     setLoadError]     = useState('')
+  const [loadAttempt,   setLoadAttempt]   = useState(0)
   const [savingBrand,   setSavingBrand]   = useState(false)
   const [brandMsg,      setBrandMsg]      = useState('')
   const [savingTc,      setSavingTc]      = useState(false)
   const [tcMsg,         setTcMsg]         = useState('')
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError,     setLogoError]     = useState('')
-  const logoInputRef = useRef(null)
+  const logoInputRef  = useRef(null)
+  const flashTimers   = useRef([])
 
   // track if either save is running so the other can show as disabled
   const anySaving = savingBrand || savingTc
 
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
-      const { data } = await supabase
-        .from('workspace_settings')
-        .select('*')
-        .eq('workspace_id', workspace.id)
-        .maybeSingle()
-      if (data) {
-        setBranding({
-          company_name:         data.company_name         ?? '',
-          company_logo_url:     data.company_logo_url     ?? '',
-          brand_colour:         data.brand_colour         ?? '#ea580c',
-          tagline:              data.tagline              ?? '',
-          company_address:      data.company_address      ?? '',
-          company_phone:        data.company_phone        ?? '',
-          company_email:        data.company_email        ?? '',
-          company_registration: data.company_registration ?? '',
-          designer_name:        data.designer_name        ?? '',
-          designer_position:    data.designer_position    ?? '',
-          footer_message:       data.footer_message       ?? 'Thank you for your business.',
-          pdf_layout:           data.pdf_layout           ?? 'modern',
-        })
-        setTc(data.terms_and_conditions ?? '')
+      try {
+        const { data, error } = await supabase
+          .from('workspace_settings')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .maybeSingle()
+        if (cancelled) return
+        if (error) throw error
+        if (data) {
+          setBranding({
+            company_name:         data.company_name         ?? '',
+            company_logo_url:     data.company_logo_url     ?? '',
+            brand_colour:         data.brand_colour         ?? '#ea580c',
+            tagline:              data.tagline              ?? '',
+            company_address:      data.company_address      ?? '',
+            company_phone:        data.company_phone        ?? '',
+            company_email:        data.company_email        ?? '',
+            company_registration: data.company_registration ?? '',
+            designer_name:        data.designer_name        ?? '',
+            designer_position:    data.designer_position    ?? '',
+            footer_message:       data.footer_message       ?? 'Thank you for your business.',
+            pdf_layout:           data.pdf_layout           ?? 'modern',
+          })
+          setTc(data.terms_and_conditions ?? '')
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || 'Failed to load settings.')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
     }
+
     load()
-  }, [workspace.id])
+    return () => {
+      cancelled = true
+      flashTimers.current.forEach(clearTimeout)
+    }
+  }, [workspace.id, loadAttempt])
 
   function setBrand(field) {
     return e => setBranding(prev => ({ ...prev, [field]: e.target.value }))
@@ -127,7 +144,8 @@ export default function SettingsPage({ onBack, onNavigate }) {
 
   function flashMsg(setMsg, msg) {
     setMsg(msg)
-    setTimeout(() => setMsg(''), 6000)
+    const t = setTimeout(() => setMsg(''), 6000)
+    flashTimers.current.push(t)
   }
 
   async function handleSaveBranding(e) {
@@ -216,12 +234,24 @@ export default function SettingsPage({ onBack, onNavigate }) {
     )
   }
 
-  if (loading) {
+  if (loading || loadError) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header onBack={onBack} onNavigate={onNavigate} />
-        <div className="flex items-center justify-center h-64">
-          <p className="text-sm text-gray-400">Loading settings…</p>
+        <div className="flex flex-col items-center justify-center h-64 gap-3">
+          {loadError ? (
+            <>
+              <p className="text-sm text-red-500">{loadError}</p>
+              <button
+                onClick={() => { setLoadError(''); setLoading(true); setLoadAttempt(n => n + 1) }}
+                className="text-sm font-medium text-brand-600 hover:underline"
+              >
+                Try again
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">Loading settings…</p>
+          )}
         </div>
       </div>
     )

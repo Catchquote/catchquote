@@ -151,46 +151,52 @@ export default function SettingsPage({ onBack, onNavigate }) {
   async function handleSaveBranding(e) {
     e.preventDefault()
     if (savingBrand || savingTc) return
+    console.log('[Settings] branding save: start')
     setSavingBrand(true)
     setBrandMsg('')
-    console.log('[Settings] saving branding fields')
 
     try {
       const payload = { workspace_id: workspace.id, ...branding }
+      console.log('[Settings] branding save: calling upsert')
       const { error } = await supabase
         .from('workspace_settings')
         .upsert(payload, { onConflict: 'workspace_id' })
+      console.log('[Settings] branding save: upsert returned', { error })
       if (error) throw new Error(error.message)
-      console.log('[Settings] branding save OK')
-      flashMsg(setBrandMsg, 'Saved.')
-    } catch (err) {
-      console.error('[Settings] branding save error:', err)
-      flashMsg(setBrandMsg, `Error: ${err.message}`)
-    } finally {
+      console.log('[Settings] branding save: success — unblocking button now')
       setSavingBrand(false)
+      flashMsg(setBrandMsg, 'Saved.')
+      console.log('[Settings] branding save: done')
+    } catch (err) {
+      console.error('[Settings] branding save: error', err)
+      setSavingBrand(false)
+      flashMsg(setBrandMsg, `Error: ${err.message}`)
     }
   }
 
   async function handleSaveTc(e) {
     e.preventDefault()
     if (savingBrand || savingTc) return
+    console.log('[Settings] T&C save: start, length:', tc?.length)
     setSavingTc(true)
     setTcMsg('')
-    console.log('[Settings] saving T&C, length:', tc?.length)
 
     try {
+      console.log('[Settings] T&C save: calling update')
       const { error } = await supabase
         .from('workspace_settings')
         .update({ terms_and_conditions: tc })
         .eq('workspace_id', workspace.id)
+      console.log('[Settings] T&C save: update returned', { error })
       if (error) throw new Error(error.message)
-      console.log('[Settings] T&C save OK')
-      flashMsg(setTcMsg, 'Saved.')
-    } catch (err) {
-      console.error('[Settings] T&C save error:', err)
-      flashMsg(setTcMsg, `Error: ${err.message}`)
-    } finally {
+      console.log('[Settings] T&C save: success — unblocking button now')
       setSavingTc(false)
+      flashMsg(setTcMsg, 'Saved.')
+      console.log('[Settings] T&C save: done')
+    } catch (err) {
+      console.error('[Settings] T&C save: error', err)
+      setSavingTc(false)
+      flashMsg(setTcMsg, `Error: ${err.message}`)
     }
   }
 

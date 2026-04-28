@@ -794,4 +794,6 @@ export async function exportQuotePDF({
 
   const safeName = (quote.quoteNumber || 'quote').replace(/[^a-z0-9]/gi, '-').toLowerCase()
   doc.save(`${safeName}.pdf`)
+  // Release the jsPDF instance immediately so the GC can reclaim its canvas buffers.
+  doc.internal = null
 }

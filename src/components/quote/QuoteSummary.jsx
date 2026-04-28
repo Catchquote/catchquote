@@ -6,7 +6,7 @@ function fmt(n, currency = 'SGD') {
 
 export default function QuoteSummary({
   subtotal, gst, gstEnabled, total, currency,
-  onToggleGst, onExportPDF, onSaveQuote, saving,
+  onToggleGst, onExportPDF, exporting, onSaveQuote, saving,
 }) {
   const cur = currency || 'SGD'
 
@@ -51,12 +51,13 @@ export default function QuoteSummary({
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={onExportPDF}
-            className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium text-sm transition-colors shadow-sm"
+            disabled={exporting}
+            className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white rounded-lg font-medium text-sm transition-colors shadow-sm"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            Export PDF
+            {exporting ? 'Exporting…' : 'Export PDF'}
           </button>
           <button
             onClick={onSaveQuote}

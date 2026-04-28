@@ -166,12 +166,25 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   }
 
   // ── Export PDF ─────────────────────────────────────────────────────────────
+  const [exporting, setExporting] = useState(false)
+
   async function handleExport() {
-    await exportQuotePDF({
-      quote, areas, itemsByArea, areaSubtotals,
-      subtotal, gst, gstEnabled, total,
-      settings: wsSettings,
-    })
+    if (exporting) return
+    setExporting(true)
+    try {
+      // Defer off the current call stack so React can flush the button-disabled
+      // state before the synchronous jsPDF work blocks the thread.
+      await new Promise(resolve => setTimeout(resolve, 50))
+      await exportQuotePDF({
+        quote, areas, itemsByArea, areaSubtotals,
+        subtotal, gst, gstEnabled, total,
+        settings: wsSettings,
+      })
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setExporting(false)
+    }
   }
 
   // ── Save ───────────────────────────────────────────────────────────────────
@@ -388,6 +401,7 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
           currency={quote.currency}
           onToggleGst={() => setGstEnabled(v => !v)}
           onExportPDF={handleExport}
+          exporting={exporting}
           onSaveQuote={handleSave}
           saving={saving}
         />

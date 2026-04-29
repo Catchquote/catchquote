@@ -21,7 +21,9 @@ function clearCorruptedAuthStorage() {
 
 clearCorruptedAuthStorage()
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  realtime: { enabled: false },
+})
 
 // Wraps a Supabase query function. On 401, refreshes the session and retries once.
 // If the refresh itself fails, signs out so AuthContext detects the expiry and

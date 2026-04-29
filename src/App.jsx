@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import QuotePage from './pages/QuotePage.jsx'
@@ -27,18 +27,6 @@ function AppContent() {
   const [page,          setPage]          = useState('dashboard')
   const [activeQuoteId, setActiveQuoteId] = useState(null)
   const [unauthPage,    setUnauthPage]    = useState('landing')
-
-  // Reload the page whenever the user returns to this tab so Supabase can
-  // restore the session from localStorage and any stale loading state is cleared.
-  useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        window.location.reload()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [])
 
   function navigate(pg) {
     if ((pg === 'team' || pg === 'presets' || pg === 'settings') && role !== 'admin') return

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import { supabase } from './lib/supabase.js'
 import Dashboard from './pages/Dashboard.jsx'
 import QuotePage from './pages/QuotePage.jsx'
 import TeamPage from './pages/TeamPage.jsx'
@@ -27,6 +28,42 @@ function AppContent() {
   const [page,          setPage]          = useState('dashboard')
   const [activeQuoteId, setActiveQuoteId] = useState(null)
   const [unauthPage,    setUnauthPage]    = useState('landing')
+  const [reconnecting,  setReconnecting]  = useState(false)
+  const [pageKey,       setPageKey]       = useState(0)
+
+  const hiddenAtRef    = useRef(null)
+  const reconnectTimer = useRef(null)
+
+  // Auto-recovery on visibility change: refresh session, and if the tab was
+  // hidden for >10 seconds force a page remount to clear any stuck loading state.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now()
+        return
+      }
+
+      // Page is visible again — always refresh the auth session silently.
+      supabase.auth.refreshSession().catch(() => {})
+
+      const hiddenMs = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : 0
+      hiddenAtRef.current = null
+
+      if (hiddenMs > 10000) {
+        // Force all page components to remount, clearing any stuck loading state.
+        setPageKey(k => k + 1)
+        clearTimeout(reconnectTimer.current)
+        setReconnecting(true)
+        reconnectTimer.current = setTimeout(() => setReconnecting(false), 1000)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearTimeout(reconnectTimer.current)
+    }
+  }, [])
 
   function navigate(pg) {
     if ((pg === 'team' || pg === 'presets' || pg === 'settings') && role !== 'admin') return
@@ -40,31 +77,33 @@ function AppContent() {
     setPage('quote')
   }
 
+  // Build page content into a variable so the reconnecting toast can be
+  // appended in a single return, regardless of which branch is active.
+  let content
+
   // ── Auth loading ──────────────────────────────────────────────────────────────
-  if (loading) return <Spinner />
+  if (loading) {
+    content = <Spinner />
 
   // ── Not authenticated ─────────────────────────────────────────────────────────
-  if (!user) {
-    if (unauthPage === 'login') {
-      return <LoginPage onBack={() => setUnauthPage('landing')} />
-    }
-    return <LandingPage onSignIn={() => setUnauthPage('login')} />
-  }
+  } else if (!user) {
+    content = unauthPage === 'login'
+      ? <LoginPage onBack={() => setUnauthPage('landing')} />
+      : <LandingPage onSignIn={() => setUnauthPage('login')} />
 
   // ── Super admin: bypass workspace requirement entirely ─────────────────────────
-  // Super admin has no workspace_members row — don't gate them on workspace checks.
-  if (isSuperAdmin) {
-    if (page === 'pricing') return <PricingPage onNavigate={navigate} />
-    return <SuperAdminPage onNavigate={navigate} />
-  }
+  } else if (isSuperAdmin) {
+    content = page === 'pricing'
+      ? <PricingPage key={pageKey} onNavigate={navigate} />
+      : <SuperAdminPage key={pageKey} onNavigate={navigate} />
 
   // ── Workspace still loading after sign-in (brief async gap) ──────────────────
-  // user is set but loadMembership hasn't finished yet — show spinner, not error.
-  if (!workspace && !workspaceError) return <Spinner />
+  } else if (!workspace && !workspaceError) {
+    content = <Spinner />
 
   // ── Workspace error ───────────────────────────────────────────────────────────
-  if (workspaceError || !workspace) {
-    return (
+  } else if (workspaceError || !workspace) {
+    content = (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-md">
           <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
@@ -89,11 +128,10 @@ function AppContent() {
         </div>
       </div>
     )
-  }
 
   // ── Deactivated account ───────────────────────────────────────────────────────
-  if (workspace.is_active === false) {
-    return (
+  } else if (workspace.is_active === false) {
+    content = (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
@@ -113,26 +151,38 @@ function AppContent() {
         </div>
       </div>
     )
-  }
 
   // ── Authenticated pages ───────────────────────────────────────────────────────
-  if (page === 'pricing') {
-    return <PricingPage onNavigate={navigate} />
-  }
-  if (page === 'team' && role === 'admin') {
-    return <TeamPage onBack={() => navigate('dashboard')} onNavigate={navigate} />
-  }
-  if (page === 'presets' && role === 'admin') {
-    return <PresetsPage onBack={() => navigate('dashboard')} onNavigate={navigate} />
-  }
-  if (page === 'settings' && role === 'admin') {
-    return <SettingsPage onBack={() => navigate('dashboard')} onNavigate={navigate} />
-  }
-  if (page === 'quote') {
-    return <QuotePage quoteId={activeQuoteId} onBack={() => navigate('dashboard')} onNavigate={navigate} />
+  } else if (page === 'pricing') {
+    content = <PricingPage key={pageKey} onNavigate={navigate} />
+  } else if (page === 'team' && role === 'admin') {
+    content = <TeamPage key={pageKey} onBack={() => navigate('dashboard')} onNavigate={navigate} />
+  } else if (page === 'presets' && role === 'admin') {
+    content = <PresetsPage key={pageKey} onBack={() => navigate('dashboard')} onNavigate={navigate} />
+  } else if (page === 'settings' && role === 'admin') {
+    content = <SettingsPage key={pageKey} onBack={() => navigate('dashboard')} onNavigate={navigate} />
+  } else if (page === 'quote') {
+    content = <QuotePage key={`quote-${activeQuoteId}-${pageKey}`} quoteId={activeQuoteId} onBack={() => navigate('dashboard')} onNavigate={navigate} />
+  } else {
+    content = <Dashboard key={pageKey} onOpenQuote={openQuote} onNavigate={navigate} />
   }
 
-  return <Dashboard onOpenQuote={openQuote} onNavigate={navigate} />
+  return (
+    <>
+      {content}
+
+      {/* Auto-recovery toast — shown for 1 second after returning from a long absence */}
+      {reconnecting && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-gray-900 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none select-none">
+          <svg className="animate-spin w-3 h-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+          Reconnecting…
+        </div>
+      )}
+    </>
+  )
 }
 
 export default function App() {

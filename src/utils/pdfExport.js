@@ -797,6 +797,11 @@ export async function exportQuotePDF({
 
   const safeName = (quote.quoteNumber || 'quote').replace(/[^a-z0-9]/gi, '-').toLowerCase()
 
+  // Yield the event loop before the synchronous deflate compression inside
+  // doc.output('blob') so Supabase's token-refresh callbacks can run without
+  // being starved by the blocking compression work.
+  await new Promise(resolve => setTimeout(resolve, 0))
+
   // Use explicit blob output so we control the download trigger and release
   // the jsPDF instance (and its font/canvas buffers) before the browser's
   // deferred click fires — avoids the 40-second blob-URL lifetime that

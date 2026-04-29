@@ -308,11 +308,14 @@ export default function PresetsPage({ onBack, onNavigate }) {
     async function doInsert() {
       try {
         // Insert in batches of 50 to stay well within Supabase row limits.
+        // Yield the event loop between batches so auth token refresh callbacks
+        // are not starved during large imports.
         for (let i = 0; i < records.length; i += 50) {
           const { error } = await supabase
             .from('user_presets')
             .insert(records.slice(i, i + 50))
           if (error) throw new Error(error.message)
+          await new Promise(resolve => setTimeout(resolve, 0))
         }
         await load()
         return null

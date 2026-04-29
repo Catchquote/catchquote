@@ -6,9 +6,6 @@ const AuthContext = createContext(null)
 export const SUPER_ADMIN_EMAIL = 'thedeepestwithin@gmail.com'
 export const TRIAL_QUOTE_LIMIT = 3
 
-const KEEPALIVE_INTERVAL_MS       = 4 * 60 * 1000
-const PROACTIVE_REFRESH_BUFFER_MS = 60 * 1000
-
 export function AuthProvider({ children }) {
   const [user,              setUser]              = useState(null)
   const [workspace,         setWorkspace]         = useState(null)
@@ -19,8 +16,6 @@ export function AuthProvider({ children }) {
 
   const intentionalSignOut = useRef(false)
   const wasAuthenticated   = useRef(false)
-  const refreshTimerRef    = useRef(null)
-  const keepaliveRef       = useRef(null)
 
   async function loadMembership(userId, userEmail) {
     if (userEmail === SUPER_ADMIN_EMAIL) {
@@ -54,33 +49,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  function scheduleProactiveRefresh(session) {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
-    if (!session?.expires_at) return
-    const msUntilExpiry = session.expires_at * 1000 - Date.now()
-    const refreshIn     = Math.max(msUntilExpiry - PROACTIVE_REFRESH_BUFFER_MS, 0)
-    refreshTimerRef.current = setTimeout(async () => {
-      const { error } = await supabase.auth.refreshSession()
-      if (error) console.warn('Proactive token refresh failed:', error.message)
-    }, refreshIn)
-  }
-
-  function startKeepalive() {
-    if (keepaliveRef.current) return
-    keepaliveRef.current = setInterval(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      await supabase.from('workspace_settings').select('id').limit(1)
-    }, KEEPALIVE_INTERVAL_MS)
-  }
-
-  function stopKeepalive() {
-    if (keepaliveRef.current) {
-      clearInterval(keepaliveRef.current)
-      keepaliveRef.current = null
-    }
-  }
-
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
@@ -89,8 +57,6 @@ export function AuthProvider({ children }) {
 
         if (u) {
           wasAuthenticated.current = true
-          scheduleProactiveRefresh(session)
-          startKeepalive()
           setSessionExpiredMsg(null)
           try {
             await loadMembership(u.id, u.email)
@@ -105,8 +71,6 @@ export function AuthProvider({ children }) {
           }
           wasAuthenticated.current   = false
           intentionalSignOut.current = false
-          clearTimeout(refreshTimerRef.current)
-          stopKeepalive()
           setWorkspace(null)
           setRole(null)
           setWorkspaceError(null)
@@ -115,11 +79,7 @@ export function AuthProvider({ children }) {
       }
     )
 
-    return () => {
-      clearTimeout(refreshTimerRef.current)
-      stopKeepalive()
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   async function signIn(email, password) {
@@ -133,8 +93,6 @@ export function AuthProvider({ children }) {
     setWorkspace(null)
     setRole(null)
     setWorkspaceError(null)
-    clearTimeout(refreshTimerRef.current)
-    stopKeepalive()
     await supabase.auth.signOut()
   }
 

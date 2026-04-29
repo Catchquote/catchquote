@@ -207,29 +207,23 @@ export default function SettingsPage({ onBack, onNavigate }) {
       setLogoError('File must be under 2 MB.')
       return
     }
-
     setLogoUploading(true)
     setLogoError('')
-
-    const ext  = file.name.split('.').pop()
-    const path = `${workspace.id}/logo.${ext}`
-
-    await supabase.storage.from(BUCKET).remove([path])
-
-    const { error: uploadErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type })
-
-    if (uploadErr) {
-      setLogoError(uploadErr.message)
+    try {
+      const ext  = file.name.split('.').pop()
+      const path = `${workspace.id}/logo.${ext}`
+      await supabase.storage.from(BUCKET).remove([path])
+      const { error: uploadErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (uploadErr) throw new Error(uploadErr.message)
+      const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
+      setBranding(prev => ({ ...prev, company_logo_url: `${publicUrl}?t=${Date.now()}` }))
+    } catch (err) {
+      setLogoError(err.message || 'Upload failed. Please try again.')
+    } finally {
       setLogoUploading(false)
-      return
     }
-
-    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    const urlWithCache = `${publicUrl}?t=${Date.now()}`
-    setBranding(prev => ({ ...prev, company_logo_url: urlWithCache }))
-    setLogoUploading(false)
   }
 
   async function handleRemoveLogo() {

@@ -3,6 +3,15 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      keyframes: {
+        fadeInUp: {
+          '0%':   { opacity: '0', transform: 'translateX(-50%) translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateX(-50%) translateY(0)' },
+        },
+      },
+      animation: {
+        fadeInUp: 'fadeInUp 0.25s ease-out',
+      },
       colors: {
         brand: {
           50:  '#fff7ed',

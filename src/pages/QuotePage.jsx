@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Header from '../components/layout/Header.jsx'
 import QuoteMetaForm from '../components/quote/QuoteMetaForm.jsx'
 import AreaSection from '../components/quote/AreaSection.jsx'
@@ -39,6 +39,7 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   const [pageLoading, setPageLoading] = useState(!!quoteId)
   const [saving,      setSaving]      = useState(false)
   const [saveError,   setSaveError]   = useState('')
+  const [loadError,   setLoadError]   = useState('')
   const [wsSettings,  setWsSettings]  = useState(null)
   const [showAddArea, setShowAddArea] = useState(false)
   const [presetModal, setPresetModal] = useState(null)  // { defaultArea } or null
@@ -54,15 +55,20 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
 
   // ── Load workspace settings ────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      const { data } = await supabase
-        .from('workspace_settings')
-        .select('company_name,company_logo_url,brand_colour,tagline,company_address,company_phone,company_email,company_registration,designer_name,designer_position,footer_message,terms_and_conditions,pdf_layout')
-        .eq('workspace_id', workspace.id)
-        .maybeSingle()
-      if (data) setWsSettings(data)
+      try {
+        const { data, error } = await supabase
+          .from('workspace_settings')
+          .select('company_name,company_logo_url,brand_colour,tagline,company_address,company_phone,company_email,company_registration,designer_name,designer_position,footer_message,terms_and_conditions,pdf_layout')
+          .eq('workspace_id', workspace.id)
+          .maybeSingle()
+        if (cancelled) return
+        if (!error && data) setWsSettings(data)
+      } catch { /* non-blocking; PDF export proceeds without logo/settings */ }
     }
     load()
+    return () => { cancelled = true }
   }, [workspace.id])
 
   // ── Pre-fill designer name from settings ────────────────────────────────────
@@ -75,67 +81,90 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   // ── Auto-generate sequential quote number ───────────────────────────────────
   useEffect(() => {
     if (quoteId) return
+    let cancelled = false
     async function genNumber() {
-      const year = new Date().getFullYear()
-      const { count } = await supabase
-        .from('quotes')
-        .select('id', { count: 'exact', head: true })
-        .eq('workspace_id', workspace.id)
-      const seq = String((count || 0) + 1).padStart(3, '0')
-      setQuote(prev => ({ ...prev, quoteNumber: `QT-${year}-${seq}` }))
+      try {
+        const year = new Date().getFullYear()
+        const { count } = await supabase
+          .from('quotes')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', workspace.id)
+        if (!cancelled) {
+          const seq = String((count || 0) + 1).padStart(3, '0')
+          setQuote(prev => ({ ...prev, quoteNumber: `QT-${year}-${seq}` }))
+        }
+      } catch { /* keep the default QT-YYYY-001 if this fails */ }
     }
     genNumber()
+    return () => { cancelled = true }
   }, [workspace.id, quoteId])
 
   // ── Load existing quote ────────────────────────────────────────────────────
   useEffect(() => {
     if (!quoteId) return
+    let cancelled = false
+
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setLoadError('Loading timed out. Please go back and try again.')
+        setPageLoading(false)
+      }
+    }, 15000)
 
     async function loadQuote() {
-      const [{ data: q }, { data: qItems }] = await Promise.all([
-        supabase.from('quotes').select('*').eq('id', quoteId).single(),
-        supabase.from('quote_items').select('*').eq('quote_id', quoteId).order('sort_order', { ascending: true }),
-      ])
+      try {
+        const [{ data: q, error: qErr }, { data: qItems, error: iErr }] = await Promise.all([
+          supabase.from('quotes').select('*').eq('id', quoteId).single(),
+          supabase.from('quote_items').select('*').eq('quote_id', quoteId).order('sort_order', { ascending: true }),
+        ])
+        if (cancelled) return
+        if (qErr) throw qErr
+        if (iErr) throw iErr
 
-      if (q) {
-        setQuote({
-          quoteNumber:   q.quote_number  || '',
-          projectTitle:  q.project_name  || '',
-          date:          q.quote_date    || q.created_at?.slice(0, 10) || todayISO(),
-          validUntil:    q.valid_until   || futureISO(30),
-          currency:      q.currency      || 'SGD',
-          clientName:    q.client_name   || '',
-          clientEmail:   q.client_email  || '',
-          clientContact: q.client_contact || '',
-          clientAddress: q.client_address || '',
-          projectAddress:q.project_address || '',
-          designerName:  q.designer_name  || '',
-          notes:         q.notes          || '',
-        })
-      }
-
-      if (qItems?.length) {
-        const areaOrder = []
-        for (const item of qItems) {
-          const area = item.area_of_works || 'General'
-          if (!areaOrder.includes(area)) areaOrder.push(area)
+        if (q) {
+          setQuote({
+            quoteNumber:   q.quote_number   || '',
+            projectTitle:  q.project_name   || '',
+            date:          q.quote_date     || q.created_at?.slice(0, 10) || todayISO(),
+            validUntil:    q.valid_until    || futureISO(30),
+            currency:      q.currency       || 'SGD',
+            clientName:    q.client_name    || '',
+            clientEmail:   q.client_email   || '',
+            clientContact: q.client_contact || '',
+            clientAddress: q.client_address || '',
+            projectAddress:q.project_address || '',
+            designerName:  q.designer_name  || '',
+            notes:         q.notes          || '',
+          })
         }
-        const mapped = qItems.map(item => ({
-          id:        item.id,
-          area:      item.area_of_works || 'General',
-          category:  item.category      || 'General Labour',
-          description: item.description || '',
-          unit:      item.unit          || 'item',
-          qty:       item.quantity      ?? 1,
-          unitPrice: item.unit_price    ?? 0,
-        }))
-        resetAll(areaOrder, mapped)
-      }
 
-      setPageLoading(false)
+        if (qItems?.length) {
+          const areaOrder = []
+          for (const item of qItems) {
+            const area = item.area_of_works || 'General'
+            if (!areaOrder.includes(area)) areaOrder.push(area)
+          }
+          const mapped = qItems.map(item => ({
+            id:          item.id,
+            area:        item.area_of_works || 'General',
+            category:    item.category      || 'General Labour',
+            description: item.description  || '',
+            unit:        item.unit          || 'item',
+            qty:         item.quantity      ?? 1,
+            unitPrice:   item.unit_price    ?? 0,
+          }))
+          resetAll(areaOrder, mapped)
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || 'Failed to load quote.')
+      } finally {
+        clearTimeout(timeoutId)
+        if (!cancelled) setPageLoading(false)
+      }
     }
 
     loadQuote()
+    return () => { cancelled = true; clearTimeout(timeoutId) }
   }, [quoteId])
 
   function updateMeta(field, value) {
@@ -166,23 +195,32 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   }
 
   // ── Export PDF ─────────────────────────────────────────────────────────────
-  const [exporting, setExporting] = useState(false)
+  const [exporting,  setExporting]  = useState(false)
+  const [pdfToast,   setPdfToast]   = useState(false)
+  const pdfToastTimer = useRef(null)
 
   async function handleExport() {
     if (exporting) return
     setExporting(true)
+    // Yield twice: once so React flushes the disabled-button render before the
+    // synchronous jsPDF compression blocks the thread, and once after so any
+    // auth/keepalive callbacks queued during the sync block run before we
+    // release the exporting flag.
+    await new Promise(resolve => setTimeout(resolve, 100))
     try {
-      // Defer off the current call stack so React can flush the button-disabled
-      // state before the synchronous jsPDF work blocks the thread.
-      await new Promise(resolve => setTimeout(resolve, 50))
       await exportQuotePDF({
         quote, areas, itemsByArea, areaSubtotals,
         subtotal, gst, gstEnabled, total,
         settings: wsSettings,
       })
+      // Show download toast for 5 seconds.
+      clearTimeout(pdfToastTimer.current)
+      setPdfToast(true)
+      pdfToastTimer.current = setTimeout(() => setPdfToast(false), 5000)
     } catch (err) {
       console.error('PDF export failed:', err)
     } finally {
+      await new Promise(resolve => setTimeout(resolve, 0))
       setExporting(false)
     }
   }
@@ -273,12 +311,21 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  if (pageLoading) {
+  if (pageLoading || loadError) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header onBack={onBack} onNavigate={onNavigate} />
-        <div className="flex items-center justify-center h-96">
-          <p className="text-gray-400 text-sm">Loading quote…</p>
+        <div className="flex flex-col items-center justify-center h-96 gap-3">
+          {loadError ? (
+            <>
+              <p className="text-sm text-red-500">{loadError}</p>
+              <button onClick={onBack} className="text-sm font-medium text-brand-600 hover:underline">
+                ← Back to dashboard
+              </button>
+            </>
+          ) : (
+            <p className="text-gray-400 text-sm">Loading quote…</p>
+          )}
         </div>
       </div>
     )
@@ -424,6 +471,29 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
           onAdd={(area, presets) => { addItems(area, presets); setPresetModal(null) }}
           onClose={() => setPresetModal(null)}
         />
+      )}
+
+      {/* PDF download toast */}
+      {pdfToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 bg-white border border-orange-200 shadow-xl rounded-xl px-5 py-4 max-w-sm w-full mx-4 animate-fadeInUp">
+          <div className="shrink-0 mt-0.5 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+            <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">PDF downloaded successfully!</p>
+            <p className="text-xs text-gray-500 mt-0.5">Open it from your Downloads folder for best experience.</p>
+          </div>
+          <button
+            onClick={() => { clearTimeout(pdfToastTimer.current); setPdfToast(false) }}
+            className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   )

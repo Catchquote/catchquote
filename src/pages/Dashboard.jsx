@@ -21,23 +21,46 @@ function capitalize(s) {
 
 export default function Dashboard({ onOpenQuote, onNavigate }) {
   const { user, workspace, role, isTrial } = useAuth()
-  const [quotes, setQuotes] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [quotes,      setQuotes]      = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setLoadError('')
+
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setLoadError('Loading timed out. Check your connection and try again.')
+        setLoading(false)
+      }
+    }, 15000)
+
     async function loadQuotes() {
-      // RLS handles role filtering: admin sees all workspace quotes,
-      // sales_designer sees only quotes where created_by = auth.uid()
-      const { data } = await supabase
-        .from('quotes')
-        .select('id, quote_number, project_name, client_name, created_at, total, status, created_by')
-        .eq('workspace_id', workspace.id)
-        .order('created_at', { ascending: false })
-      setQuotes(data || [])
-      setLoading(false)
+      try {
+        // RLS handles role filtering: admin sees all workspace quotes,
+        // sales_designer sees only quotes where created_by = auth.uid()
+        const { data, error } = await supabase
+          .from('quotes')
+          .select('id, quote_number, project_name, client_name, created_at, total, status, created_by')
+          .eq('workspace_id', workspace.id)
+          .order('created_at', { ascending: false })
+        if (cancelled) return
+        if (error) throw error
+        setQuotes(data || [])
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || 'Failed to load quotes.')
+      } finally {
+        clearTimeout(timeoutId)
+        if (!cancelled) setLoading(false)
+      }
     }
+
     loadQuotes()
-  }, [workspace.id])
+    return () => { cancelled = true; clearTimeout(timeoutId) }
+  }, [workspace.id, loadAttempt])
 
   const accepted = quotes.filter(q => q.status === 'accepted')
   const pending  = quotes.filter(q => q.status === 'sent')
@@ -139,6 +162,16 @@ export default function Dashboard({ onOpenQuote, onNavigate }) {
 
           {loading ? (
             <div className="px-5 py-12 text-center text-sm text-gray-400">Loading quotes…</div>
+          ) : loadError ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm text-red-500 mb-3">{loadError}</p>
+              <button
+                onClick={() => setLoadAttempt(n => n + 1)}
+                className="text-sm font-medium text-brand-600 hover:underline"
+              >
+                Try again
+              </button>
+            </div>
           ) : quotes.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <p className="text-sm text-gray-400 mb-3">No quotes yet</p>

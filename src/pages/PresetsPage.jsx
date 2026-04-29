@@ -125,26 +125,66 @@ function CategoryGroup({ category, items, onEdit, onDelete, onToggle }) {
 
 export default function PresetsPage({ onBack, onNavigate }) {
   const { user, workspace } = useAuth()
-  const [presets, setPresets] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [catFilter, setCatFilter] = useState('All')
-  const [modal, setModal] = useState(null)   // null | { preset? }
-  const [importOpen, setImportOpen] = useState(false)
+  const [presets,     setPresets]     = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [search,      setSearch]      = useState('')
+  const [catFilter,   setCatFilter]   = useState('All')
+  const [modal,       setModal]       = useState(null)
+  const [importOpen,  setImportOpen]  = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
+  // load() used by save/delete/import callbacks — simple re-fetch, errors surface inline
   async function load() {
-    const { data } = await supabase
-      .from('user_presets')
-      .select('*')
-      .eq('workspace_id', workspace.id)
-      .order('category',    { ascending: true })
-      .order('description', { ascending: true })
-    setPresets(data || [])
-    setLoading(false)
+    try {
+      const { data, error } = await supabase
+        .from('user_presets')
+        .select('*')
+        .eq('workspace_id', workspace.id)
+        .order('category',    { ascending: true })
+        .order('description', { ascending: true })
+      if (error) throw error
+      setPresets(data || [])
+    } catch (err) {
+      console.error('Presets reload error:', err.message)
+    }
   }
 
-  useEffect(() => { load() }, [workspace.id])
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setLoadError('')
+
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setLoadError('Loading timed out. Check your connection and try again.')
+        setLoading(false)
+      }
+    }, 15000)
+
+    async function loadPresets() {
+      try {
+        const { data, error } = await supabase
+          .from('user_presets')
+          .select('*')
+          .eq('workspace_id', workspace.id)
+          .order('category',    { ascending: true })
+          .order('description', { ascending: true })
+        if (cancelled) return
+        if (error) throw error
+        setPresets(data || [])
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || 'Failed to load presets.')
+      } finally {
+        clearTimeout(timeoutId)
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadPresets()
+    return () => { cancelled = true; clearTimeout(timeoutId) }
+  }, [workspace.id, loadAttempt])
 
   // All unique categories in the data
   const categories = useMemo(() => {
@@ -256,14 +296,36 @@ export default function PresetsPage({ onBack, onNavigate }) {
 
     if (!records.length) return 'No valid rows found — Description column is required.'
 
-    // Insert in batches of 100
-    for (let i = 0; i < records.length; i += 100) {
-      const { error } = await supabase.from('user_presets').insert(records.slice(i, i + 100))
-      if (error) return error.message
+    // Race the entire insert operation against a 30-second hard timeout.
+    let timeoutId
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error('Import timed out after 30 seconds. Try a smaller file or check your connection.')),
+        30000
+      )
+    })
+
+    async function doInsert() {
+      try {
+        // Insert in batches of 50 to stay well within Supabase row limits.
+        for (let i = 0; i < records.length; i += 50) {
+          const { error } = await supabase
+            .from('user_presets')
+            .insert(records.slice(i, i + 50))
+          if (error) throw new Error(error.message)
+        }
+        await load()
+        return null
+      } finally {
+        clearTimeout(timeoutId)
+      }
     }
 
-    await load()
-    return null
+    try {
+      return await Promise.race([doInsert(), timeoutPromise])
+    } catch (err) {
+      return err.message || 'Import failed. Please try again.'
+    }
   }
 
   const hasPresets = presets.length > 0
@@ -355,6 +417,16 @@ export default function PresetsPage({ onBack, onNavigate }) {
         {/* Content */}
         {loading ? (
           <div className="text-center py-20 text-sm text-gray-400">Loading presets…</div>
+        ) : loadError ? (
+          <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
+            <p className="text-sm text-red-500 mb-3">{loadError}</p>
+            <button
+              onClick={() => setLoadAttempt(n => n + 1)}
+              className="text-sm font-medium text-brand-600 hover:underline"
+            >
+              Try again
+            </button>
+          </div>
         ) : !hasPresets ? (
           <div className="bg-white rounded-xl border border-gray-200 py-20 text-center">
             <svg className="w-12 h-12 text-gray-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

@@ -36,10 +36,12 @@ function Modal({ title, onClose, children }) {
 }
 
 export default function SuperAdminPage({ onNavigate }) {
-  const [workspaces, setWorkspaces] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [search, setSearch]         = useState('')
-  const [showCreate, setShowCreate] = useState(false)
+  const [workspaces,    setWorkspaces]    = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [loadError,     setLoadError]     = useState('')
+  const [loadAttempt,   setLoadAttempt]   = useState(0)
+  const [search,        setSearch]        = useState('')
+  const [showCreate,    setShowCreate]    = useState(false)
   const [actionLoading, setActionLoading] = useState(null)
 
   const [form, setForm] = useState({
@@ -54,82 +56,83 @@ export default function SuperAdminPage({ onNavigate }) {
 
   async function loadWorkspaces() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('workspaces')
-      .select(`
-        id, name, owner_id, account_type, is_active, created_at,
-        workspace_members(count),
-        quotes(count)
-      `)
-      .order('created_at', { ascending: false })
+    setLoadError('')
+    try {
+      const { data, error } = await supabase
+        .from('workspaces')
+        .select(`
+          id, name, owner_id, account_type, is_active, created_at,
+          workspace_members(count),
+          quotes(count)
+        `)
+        .order('created_at', { ascending: false })
+      if (error) throw error
 
-    if (error) {
-      console.error('SA load error:', error)
+      // Fetch owner emails from profiles
+      const ownerIds = [...new Set((data || []).map(w => w.owner_id).filter(Boolean))]
+      let profileMap = {}
+      if (ownerIds.length) {
+        const { data: profiles } = await supabase
+          .from('profiles').select('id, email').in('id', ownerIds)
+        ;(profiles || []).forEach(p => { profileMap[p.id] = p.email })
+      }
+
+      setWorkspaces((data || []).map(w => ({
+        ...w,
+        ownerEmail:  profileMap[w.owner_id] || '—',
+        memberCount: w.workspace_members?.[0]?.count ?? 0,
+        quoteCount:  w.quotes?.[0]?.count ?? 0,
+      })))
+    } catch (err) {
+      console.error('SA load error:', err)
+      setLoadError(err.message || 'Failed to load workspaces.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    // Fetch owner emails from profiles
-    const ownerIds = [...new Set((data || []).map(w => w.owner_id).filter(Boolean))]
-    let profileMap = {}
-    if (ownerIds.length) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .in('id', ownerIds)
-      ;(profiles || []).forEach(p => { profileMap[p.id] = p.email })
-    }
-
-    setWorkspaces((data || []).map(w => ({
-      ...w,
-      ownerEmail: profileMap[w.owner_id] || '—',
-      memberCount: w.workspace_members?.[0]?.count ?? 0,
-      quoteCount:  w.quotes?.[0]?.count ?? 0,
-    })))
-    setLoading(false)
   }
 
-  useEffect(() => { loadWorkspaces() }, [])
+  useEffect(() => { loadWorkspaces() }, [loadAttempt])
 
   async function handleUpgrade(ws) {
     setActionLoading(ws.id + ':upgrade')
-    const { error } = await supabase
-      .from('workspaces')
-      .update({ account_type: 'pro' })
-      .eq('id', ws.id)
-    if (!error) {
-      setWorkspaces(prev => prev.map(w => w.id === ws.id ? { ...w, account_type: 'pro' } : w))
+    try {
+      const { error } = await supabase
+        .from('workspaces').update({ account_type: 'pro' }).eq('id', ws.id)
+      if (!error) setWorkspaces(prev => prev.map(w => w.id === ws.id ? { ...w, account_type: 'pro' } : w))
+    } catch (err) {
+      console.error('Upgrade error:', err.message)
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   async function handleDowngrade(ws) {
     setActionLoading(ws.id + ':downgrade')
-    const { error } = await supabase
-      .from('workspaces')
-      .update({ account_type: 'trial' })
-      .eq('id', ws.id)
-    if (!error) {
-      setWorkspaces(prev => prev.map(w => w.id === ws.id ? { ...w, account_type: 'trial' } : w))
+    try {
+      const { error } = await supabase
+        .from('workspaces').update({ account_type: 'trial' }).eq('id', ws.id)
+      if (!error) setWorkspaces(prev => prev.map(w => w.id === ws.id ? { ...w, account_type: 'trial' } : w))
+    } catch (err) {
+      console.error('Downgrade error:', err.message)
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   async function handleToggleActive(ws) {
-    const key = ws.id + ':toggle'
-    setActionLoading(key)
+    setActionLoading(ws.id + ':toggle')
     const newActive = !ws.is_active
-    const { error } = await supabase
-      .from('workspaces')
-      .update({
-        is_active: newActive,
-        deactivated_at: newActive ? null : new Date().toISOString(),
-      })
-      .eq('id', ws.id)
-    if (!error) {
-      setWorkspaces(prev => prev.map(w => w.id === ws.id ? { ...w, is_active: newActive } : w))
+    try {
+      const { error } = await supabase
+        .from('workspaces')
+        .update({ is_active: newActive, deactivated_at: newActive ? null : new Date().toISOString() })
+        .eq('id', ws.id)
+      if (!error) setWorkspaces(prev => prev.map(w => w.id === ws.id ? { ...w, is_active: newActive } : w))
+    } catch (err) {
+      console.error('Toggle active error:', err.message)
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   async function handleCreate(e) {
@@ -278,6 +281,16 @@ export default function SuperAdminPage({ onNavigate }) {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="px-5 py-16 text-center text-sm text-gray-400">Loading workspaces…</div>
+          ) : loadError ? (
+            <div className="px-5 py-16 text-center">
+              <p className="text-sm text-red-500 mb-3">{loadError}</p>
+              <button
+                onClick={() => setLoadAttempt(n => n + 1)}
+                className="text-sm font-medium text-brand-600 hover:underline"
+              >
+                Try again
+              </button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-16 text-center text-sm text-gray-400">No workspaces found.</div>
           ) : (

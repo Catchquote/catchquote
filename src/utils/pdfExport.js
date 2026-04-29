@@ -28,8 +28,10 @@ function fmtDate(iso) {
 }
 
 async function loadImageAsDataUrl(url) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5000)
   try {
-    const resp = await fetch(url)
+    const resp = await fetch(url, { signal: controller.signal })
     const blob = await resp.blob()
     return await new Promise((res, rej) => {
       const reader = new FileReader()
@@ -38,6 +40,7 @@ async function loadImageAsDataUrl(url) {
       reader.readAsDataURL(blob)
     })
   } catch { return null }
+  finally { clearTimeout(timer) }
 }
 
 function imgFormat(dataUrl) {
@@ -793,7 +796,22 @@ export async function exportQuotePDF({
   }
 
   const safeName = (quote.quoteNumber || 'quote').replace(/[^a-z0-9]/gi, '-').toLowerCase()
-  doc.save(`${safeName}.pdf`)
-  // Release the jsPDF instance immediately so the GC can reclaim its canvas buffers.
-  doc.internal = null
+
+  // Use explicit blob output so we control the download trigger and release
+  // the jsPDF instance (and its font/canvas buffers) before the browser's
+  // deferred click fires — avoids the 40-second blob-URL lifetime that
+  // jsPDF's built-in save() schedules internally.
+  const blob = doc.output('blob')
+  doc.internal = null   // allow GC to reclaim font and canvas buffers immediately
+
+  const url = URL.createObjectURL(blob)
+  const a   = document.createElement('a')
+  a.href     = url
+  a.download = `${safeName}.pdf`
+  a.rel      = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  // Revoke after a short delay so the browser has started the download.
+  setTimeout(() => URL.revokeObjectURL(url), 3000)
 }

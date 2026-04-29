@@ -12,9 +12,14 @@ export default function LoginPage({ onBack }) {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const err = await signIn(email, password)
-    if (err) setError(err.message)
-    setLoading(false)
+    try {
+      const err = await signIn(email, password)
+      if (err) setError(err.message)
+    } catch (err) {
+      setError(err?.message || 'Sign in failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

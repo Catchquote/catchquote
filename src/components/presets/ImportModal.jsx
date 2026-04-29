@@ -39,6 +39,7 @@ export default function ImportModal({ onImport, onClose }) {
   const [parseError, setParseError] = useState('')
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
+  const [importSuccess, setImportSuccess] = useState('')
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
@@ -69,10 +70,21 @@ export default function ImportModal({ onImport, onClose }) {
   async function handleConfirm() {
     setImporting(true)
     setImportError('')
-    const err = await onImport(rows)
-    setImporting(false)
-    if (err) setImportError(err)
-    else onClose()
+    setImportSuccess('')
+    try {
+      const err = await onImport(rows)
+      if (err) {
+        setImportError(err)
+      } else {
+        const n = validRows.length
+        setImportSuccess(`Successfully imported ${n} preset${n !== 1 ? 's' : ''}.`)
+        setTimeout(onClose, 1800)
+      }
+    } catch (err) {
+      setImportError(err?.message || 'An unexpected error occurred. Please try again.')
+    } finally {
+      setImporting(false)
+    }
   }
 
   const validRows = rows?.filter(r => getField(r, 'Description', 'description').toString().trim()) ?? []
@@ -193,6 +205,9 @@ export default function ImportModal({ onImport, onClose }) {
 
               {importError && (
                 <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{importError}</p>
+              )}
+              {importSuccess && (
+                <p className="text-xs text-green-700 bg-green-50 border border-green-100 px-3 py-2 rounded-lg font-medium">{importSuccess}</p>
               )}
             </div>
           )}

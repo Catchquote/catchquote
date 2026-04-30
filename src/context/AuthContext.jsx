@@ -51,18 +51,26 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         const u = session?.user ?? null
         setUser(u)
 
         if (u) {
           wasAuthenticated.current = true
           setSessionExpiredMsg(null)
-          try {
-            await loadMembership(u.id, u.email)
-          } catch (err) {
-            setWorkspaceError(err.message || 'Failed to load workspace.')
-          } finally {
+          // Only load membership on initial session or after sign-in.
+          // TOKEN_REFRESHED fires on every background token rotation — calling
+          // loadMembership there causes a spurious DB round-trip that can set
+          // workspaceError and clear the workspace on tab return.
+          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+            try {
+              await loadMembership(u.id, u.email)
+            } catch (err) {
+              setWorkspaceError(err.message || 'Failed to load workspace.')
+            } finally {
+              setLoading(false)
+            }
+          } else {
             setLoading(false)
           }
         } else {
@@ -79,7 +87,32 @@ export function AuthProvider({ children }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible') return
+      // Only detect true session loss — do NOT call refreshSession() here.
+      // Supabase already auto-refreshes tokens internally. A manual refreshSession()
+      // call races with the internal refresh and invalidates the single-use refresh
+      // token, leaving the client unable to make any requests.
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session && wasAuthenticated.current) {
+          setSessionExpiredMsg('Your session expired, please log in again')
+          setUser(null)
+          setWorkspace(null)
+          setRole(null)
+          setLoading(false)
+        }
+      } catch {
+        // getSession failure is non-fatal; onAuthStateChange will handle token events
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   async function signIn(email, password) {

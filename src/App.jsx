@@ -23,7 +23,7 @@ const Spinner = () => (
 )
 
 function AppContent() {
-  const { user, workspace, role, loading, workspaceError, isSuperAdmin, signOut, retryWorkspace } = useAuth()
+  const { user, workspace, role, loading, workspaceError, workspaceReady, isSuperAdmin, signOut, retryWorkspace } = useAuth()
   const [page,          setPage]          = useState('dashboard')
   const [activeQuoteId, setActiveQuoteId] = useState(null)
   const [unauthPage,    setUnauthPage]    = useState('landing')
@@ -40,8 +40,8 @@ function AppContent() {
     setPage('quote')
   }
 
-  // ── Auth loading ──────────────────────────────────────────────────────────────
-  if (loading) return <Spinner />
+  // ── Auth loading (first page load only — never block on background token refresh) ─
+  if (loading && !workspaceReady) return <Spinner />
 
   // ── Not authenticated ─────────────────────────────────────────────────────────
   if (!user) {
@@ -57,8 +57,8 @@ function AppContent() {
     return <SuperAdminPage onNavigate={navigate} />
   }
 
-  // ── Workspace still loading after sign-in (brief async gap) ──────────────────
-  if (!workspace && !workspaceError) return <Spinner />
+  // ── Workspace still loading after sign-in (first load only) ──────────────────
+  if (!workspace && !workspaceError && !workspaceReady) return <Spinner />
 
   // ── Workspace error ───────────────────────────────────────────────────────────
   if (workspaceError || !workspace) {

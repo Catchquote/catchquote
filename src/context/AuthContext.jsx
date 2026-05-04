@@ -94,22 +94,19 @@ export function AuthProvider({ children }) {
           wasAuthenticated.current = true
           setSessionExpiredMsg(null)
 
-          // Load the workspace when:
-          //   INITIAL_SESSION / SIGNED_IN  — always (first load or fresh sign-in)
-          //   TOKEN_REFRESHED              — only if workspace isn't loaded yet
+          // Load the workspace only when workspaceIdRef is null (not yet loaded):
+          //   INITIAL_SESSION — always (first page load, workspace never fetched)
+          //   SIGNED_IN       — only if workspace not loaded (fresh sign-in)
+          //   TOKEN_REFRESHED — only if workspace not loaded (expired-token recovery)
           //
-          // The TOKEN_REFRESHED branch handles the new-tab + expired-token case:
-          //   INITIAL_SESSION fires → loadMembership fails with 401 (expired JWT)
-          //   → workspaceIdRef stays null → TOKEN_REFRESHED fires after supabase
-          //   refreshes internally → we retry with the fresh token and succeed.
-          //
-          // When the workspace IS already loaded (workspaceIdRef is non-null),
-          // TOKEN_REFRESHED skips loadMembership entirely, eliminating spurious
-          // DB round-trips and the workspace-flicker bug on tab return.
+          // SIGNED_IN fires on every tab switch via Supabase's internal
+          // _recoverAndRefresh() → _notifyAllSubscribers('SIGNED_IN'). Guarding
+          // on workspaceIdRef === null means tab switches skip loadMembership
+          // entirely once the workspace is already loaded, eliminating the
+          // ~10-second DB round-trip that was triggered on every tab switch.
           const needsWorkspace =
             event === 'INITIAL_SESSION' ||
-            event === 'SIGNED_IN'       ||
-            (event === 'TOKEN_REFRESHED' && workspaceIdRef.current === null)
+            ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && workspaceIdRef.current === null)
 
           if (needsWorkspace) {
             // Clear any previous error so the app shows a spinner during the

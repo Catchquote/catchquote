@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 
-const CONTACT = 'mailto:thedeepestwithin@gmail.com'
+const CONTACT_EMAIL = 'info@catchquote.io'
+const CONTACT       = `mailto:${CONTACT_EMAIL}`
 
 /* ─── Shared components ─────────────────────────────────────── */
 
@@ -352,7 +353,7 @@ function PhoneMockup() {
 
 /* ─── Main Landing Page ─────────────────────────────────────── */
 
-export default function LandingPage({ onSignIn }) {
+export default function LandingPage({ onSignIn, onSignUp }) {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -368,12 +369,20 @@ export default function LandingPage({ onSignIn }) {
       <nav className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm transition-all duration-200 ${scrolled ? 'shadow-sm border-b border-gray-100' : ''}`}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
-          <button
-            onClick={onSignIn}
-            className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors"
-          >
-            Sign In →
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onSignIn}
+              className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={onSignUp}
+              className="text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Start Free Trial
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -393,15 +402,15 @@ export default function LandingPage({ onSignIn }) {
               The quotation tool built for Singapore interior designers — preset your rates, drag to build, send professional PDFs in minutes.
             </p>
             <div className="flex flex-wrap gap-3">
-              <a
-                href={CONTACT}
+              <button
+                onClick={onSignUp}
                 className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm shadow-brand-200"
               >
-                Request a Trial
+                Start Free Trial
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
                 </svg>
-              </a>
+              </button>
               <button
                 onClick={onSignIn}
                 className="inline-flex items-center gap-2 border-2 border-gray-200 hover:border-brand-300 hover:text-brand-600 text-gray-600 font-semibold px-6 py-3 rounded-xl transition-colors"
@@ -630,12 +639,12 @@ export default function LandingPage({ onSignIn }) {
 
       {/* ── Pricing ─────────────────────────────────────────── */}
       <section className="py-20 px-6" id="pricing">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-gray-900 mb-3">Simple, Transparent Pricing</h2>
             <p className="text-gray-500">Start free. Scale when you're ready.</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-8 items-start">
+          <div className="grid sm:grid-cols-3 gap-6 items-start">
 
             {/* Trial */}
             <div className="rounded-2xl border-2 border-gray-200 p-8">
@@ -653,12 +662,12 @@ export default function LandingPage({ onSignIn }) {
                   </li>
                 ))}
               </ul>
-              <a
-                href={CONTACT}
-                className="block text-center border-2 border-brand-600 text-brand-600 hover:bg-brand-50 font-semibold py-3 rounded-xl transition-colors"
+              <button
+                onClick={onSignUp}
+                className="block w-full text-center border-2 border-brand-600 text-brand-600 hover:bg-brand-50 font-semibold py-3 rounded-xl transition-colors"
               >
-                Request Trial
-              </a>
+                Start Free Trial
+              </button>
             </div>
 
             {/* Pro */}
@@ -672,7 +681,7 @@ export default function LandingPage({ onSignIn }) {
                 <div className="text-sm font-semibold text-brand-700 mb-1">Pro</div>
                 <div className="flex items-end gap-2">
                   <span className="text-4xl font-extrabold text-gray-900">$99</span>
-                  <span className="text-gray-400 mb-1">/month</span>
+                  <span className="text-gray-400 mb-1">/month SGD</span>
                 </div>
                 <div className="text-sm text-gray-500 mt-1">+$25/user for additional members</div>
               </div>
@@ -690,15 +699,54 @@ export default function LandingPage({ onSignIn }) {
                   </li>
                 ))}
               </ul>
-              <a
-                href={CONTACT}
-                className="block text-center bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-sm"
+              <button
+                onClick={onSignUp}
+                className="block w-full text-center bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-sm"
               >
-                Get Started
+                Start Free Trial
+              </button>
+            </div>
+
+            {/* Enterprise */}
+            <div className="rounded-2xl border-2 border-gray-800 bg-gray-900 p-8">
+              <div className="mb-6">
+                <div className="text-sm font-semibold text-gray-400 mb-1">Enterprise</div>
+                <div className="flex items-end gap-2">
+                  <span className="text-4xl font-extrabold text-white">Custom</span>
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Tailored to your firm</div>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {[
+                  'Everything in Pro',
+                  'Unlimited team members',
+                  'White-label PDF branding',
+                  'Dedicated account manager',
+                  'Custom integrations',
+                  'SLA & priority support',
+                ].map(f => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-gray-300">
+                    <svg className="w-5 h-5 shrink-0 mt-0.5 text-brand-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href={`mailto:${CONTACT_EMAIL}?subject=CatchQuote%20Enterprise%20Enquiry`}
+                className="block text-center bg-white hover:bg-gray-100 text-gray-900 font-semibold py-3 rounded-xl transition-colors"
+              >
+                Contact us
               </a>
             </div>
 
           </div>
+
+          <p className="text-center text-sm text-gray-400 mt-8">
+            Enterprise enquiries:{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-600 hover:underline font-medium">{CONTACT_EMAIL}</a>
+          </p>
         </div>
       </section>
 
@@ -711,15 +759,16 @@ export default function LandingPage({ onSignIn }) {
           <p className="text-brand-100 mb-10 text-lg">
             Join Singapore ID firms already saving hours every week.
           </p>
-          <a
-            href={CONTACT}
+          <button
+            onClick={onSignUp}
             className="inline-flex items-center gap-3 bg-white text-brand-600 hover:bg-brand-50 font-bold px-8 py-4 rounded-2xl transition-colors text-lg shadow-xl"
           >
-            Request a Trial
+            Start Free Trial
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
             </svg>
-          </a>
+          </button>
+          <p className="mt-4 text-brand-200 text-sm">Free · no credit card required</p>
         </div>
       </section>
 
@@ -740,7 +789,7 @@ export default function LandingPage({ onSignIn }) {
           <div className="flex items-center gap-6 text-sm">
             <button onClick={onSignIn} className="hover:text-white transition-colors">Sign In</button>
             <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-            <a href={CONTACT} className="hover:text-white transition-colors">Contact</a>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white transition-colors">Contact</a>
           </div>
         </div>
         <div className="max-w-5xl mx-auto mt-8 pt-6 border-t border-gray-800 text-center text-xs text-gray-600">

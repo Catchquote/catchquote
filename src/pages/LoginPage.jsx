@@ -94,7 +94,10 @@ export default function LoginPage({ onBack }) {
         </div>
 
         <p className="text-center text-sm text-gray-500 mt-5">
-          Contact <a href="mailto:thedeepestwithin@gmail.com" className="text-brand-600 hover:text-brand-700 font-medium">thedeepestwithin@gmail.com</a> to get access.
+          Don't have an account?{' '}
+          <a href="mailto:info@catchquote.io" className="text-brand-600 hover:text-brand-700 font-medium">
+            Contact us
+          </a>
         </p>
       </div>
     </div>

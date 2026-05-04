@@ -157,6 +157,17 @@ export function AuthProvider({ children }) {
     return error
   }
 
+  async function signUp(email, password, companyName) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { company_name: companyName || '' },
+      },
+    })
+    return error
+  }
+
   async function signOut() {
     intentionalSignOut.current = true
     workspaceIdRef.current     = null
@@ -176,7 +187,7 @@ export function AuthProvider({ children }) {
       loading, workspaceError, workspaceReady,
       isSuperAdmin, isTrial,
       sessionExpiredMsg,
-      signIn, signOut, retryWorkspace,
+      signIn, signUp, signOut, retryWorkspace,
     }}>
       {children}
     </AuthContext.Provider>

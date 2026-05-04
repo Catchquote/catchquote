@@ -6,8 +6,10 @@ import TeamPage from './pages/TeamPage.jsx'
 import PresetsPage from './pages/PresetsPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import PricingPage from './pages/PricingPage.jsx'
+import BillingPage from './pages/BillingPage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import SignupPage from './pages/SignupPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 
 const Spinner = () => (
@@ -22,14 +24,27 @@ const Spinner = () => (
   </div>
 )
 
+// Detect ?upgraded=true in the URL (set by Stripe success_url) and clear it
+// immediately so the param doesn't persist on refresh.
+function consumeUpgradeParam() {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('upgraded') === 'true') {
+    window.history.replaceState({}, '', window.location.pathname)
+    return true
+  }
+  return false
+}
+
 function AppContent() {
   const { user, workspace, role, loading, workspaceError, workspaceReady, isSuperAdmin, signOut, retryWorkspace } = useAuth()
   const [page,          setPage]          = useState('dashboard')
   const [activeQuoteId, setActiveQuoteId] = useState(null)
   const [unauthPage,    setUnauthPage]    = useState('landing')
+  // Initialised once from the URL — true when returning from a successful Stripe checkout.
+  const [upgraded,      setUpgraded]      = useState(consumeUpgradeParam)
 
   function navigate(pg) {
-    if ((pg === 'team' || pg === 'presets' || pg === 'settings') && role !== 'admin') return
+    if ((pg === 'team' || pg === 'presets' || pg === 'settings' || pg === 'billing') && role !== 'admin') return
     if (pg === 'superadmin' && !isSuperAdmin) return
     setPage(pg)
     if (pg !== 'quote') setActiveQuoteId(null)
@@ -48,7 +63,20 @@ function AppContent() {
     if (unauthPage === 'login') {
       return <LoginPage onBack={() => setUnauthPage('landing')} />
     }
-    return <LandingPage onSignIn={() => setUnauthPage('login')} />
+    if (unauthPage === 'signup') {
+      return (
+        <SignupPage
+          onSwitchToLogin={() => setUnauthPage('login')}
+          onBack={() => setUnauthPage('landing')}
+        />
+      )
+    }
+    return (
+      <LandingPage
+        onSignIn={() => setUnauthPage('login')}
+        onSignUp={() => setUnauthPage('signup')}
+      />
+    )
   }
 
   // ── Super admin: bypass workspace requirement entirely ─────────────────────────
@@ -102,7 +130,7 @@ function AppContent() {
           <p className="font-bold text-gray-900 text-xl mb-2">Account deactivated</p>
           <p className="text-sm text-gray-500 mb-6">
             Your CatchQuote account has been deactivated. Please contact{' '}
-            <a href="mailto:thedeepestwithin@gmail.com" className="text-brand-600 hover:underline">thedeepestwithin@gmail.com</a>
+            <a href="mailto:info@catchquote.io" className="text-brand-600 hover:underline">info@catchquote.io</a>
             {' '}to reactivate.
           </p>
           <button onClick={signOut} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50">
@@ -126,11 +154,21 @@ function AppContent() {
   if (page === 'settings' && role === 'admin') {
     return <SettingsPage onBack={() => navigate('dashboard')} onNavigate={navigate} />
   }
+  if (page === 'billing' && role === 'admin') {
+    return <BillingPage onNavigate={navigate} />
+  }
   if (page === 'quote') {
     return <QuotePage quoteId={activeQuoteId} onBack={() => navigate('dashboard')} onNavigate={navigate} />
   }
 
-  return <Dashboard onOpenQuote={openQuote} onNavigate={navigate} />
+  return (
+    <Dashboard
+      onOpenQuote={openQuote}
+      onNavigate={navigate}
+      upgraded={upgraded}
+      onDismissUpgraded={() => setUpgraded(false)}
+    />
+  )
 }
 
 export default function App() {

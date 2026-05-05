@@ -28,12 +28,7 @@ export default function SignupPage({ onSwitchToLogin, onBack }) {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <svg width="32" height="32" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c"/>
-            <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(120 14 14)"/>
-            <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(240 14 14)"/>
-          </svg>
-          <span className="font-bold text-gray-900 text-xl">CatchQuote</span>
+          <img src="https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/long%20logo%20transparent%20bg.png" alt="CatchQuote" className="h-10 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">

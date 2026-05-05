@@ -5,17 +5,11 @@ const CONTACT       = `mailto:${CONTACT_EMAIL}`
 
 /* ─── Shared components ─────────────────────────────────────── */
 
+const LONG_LOGO  = "https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/long%20logo%20transparent%20bg.png"
+const SQUARE_LOGO = "https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/logo%20transparent%20bg.png"
+
 function Logo({ light = false }) {
-  return (
-    <div className="flex items-center gap-2">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c"/>
-        <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(120 14 14)"/>
-        <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(240 14 14)"/>
-      </svg>
-      <span className={`font-bold text-xl ${light ? 'text-white' : 'text-gray-900'}`}>CatchQuote</span>
-    </div>
-  )
+  return <img src={LONG_LOGO} alt="CatchQuote" className="h-8 w-auto" />
 }
 
 function Check({ white = false }) {
@@ -286,13 +280,8 @@ function PhoneMockup() {
 
         {/* App header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
-              <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c"/>
-              <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(120 14 14)"/>
-              <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(240 14 14)"/>
-            </svg>
-            <span className="font-bold text-[11px] text-gray-900">CatchQuote</span>
+          <div className="flex items-center">
+            <img src={LONG_LOGO} alt="CatchQuote" className="h-3.5 w-auto" />
           </div>
           <div className="w-6 h-6 bg-brand-600 rounded-full flex items-center justify-center">
             <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -777,11 +766,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-                <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c"/>
-                <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(120 14 14)"/>
-                <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(240 14 14)"/>
-              </svg>
+              <img src={SQUARE_LOGO} alt="CatchQuote" className="h-7 w-auto" />
               <span className="font-bold text-white text-lg">CatchQuote</span>
             </div>
             <p className="text-sm text-gray-500">The quotation tool for Singapore ID firms.</p>

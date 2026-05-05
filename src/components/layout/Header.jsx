@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import { useAuth, SUPER_ADMIN_EMAIL } from '../../context/AuthContext.jsx'
 
-const Logo = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c"/>
-    <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(120 14 14)"/>
-    <rect x="10" y="1" width="8" height="15" rx="4" fill="#ea580c" transform="rotate(240 14 14)"/>
-  </svg>
-)
+const LONG_LOGO = "https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/long%20logo%20transparent%20bg.png"
 
 export default function Header({ onBack, onNavigate }) {
   const { user, role, workspace, isSuperAdmin, isTrial, signOut } = useAuth()
@@ -42,10 +36,9 @@ export default function Header({ onBack, onNavigate }) {
 
             <button
               onClick={() => nav('dashboard')}
-              className="flex items-center gap-2 shrink-0"
+              className="flex items-center shrink-0"
             >
-              <Logo />
-              <span className="font-semibold text-gray-900 text-sm">CatchQuote</span>
+              <img src={LONG_LOGO} alt="CatchQuote" className="h-7 w-auto" />
             </button>
 
             {/* Desktop nav */}

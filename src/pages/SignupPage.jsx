@@ -28,7 +28,7 @@ export default function SignupPage({ onSwitchToLogin, onBack }) {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <img src="https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/long%20logo%20transparent%20bg.png" alt="CatchQuote" className="h-10 w-auto" />
+          <img src="https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/long%20logo%20transparent%20bg.png" alt="CatchQuote" className="w-[150px] h-auto" />
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">

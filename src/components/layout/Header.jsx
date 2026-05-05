@@ -38,7 +38,7 @@ export default function Header({ onBack, onNavigate }) {
               onClick={() => nav('dashboard')}
               className="flex items-center shrink-0"
             >
-              <img src={LONG_LOGO} alt="CatchQuote" className="h-7 w-auto" />
+              <img src={LONG_LOGO} alt="CatchQuote" className="h-9 w-auto" />
             </button>
 
             {/* Desktop nav */}

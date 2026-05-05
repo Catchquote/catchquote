@@ -9,7 +9,7 @@ const LONG_LOGO  = "https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/p
 const SQUARE_LOGO = "https://ljognnvocvcqnsfjskpo.supabase.co/storage/v1/object/public/Catchquote's%20logo/logo/logo%20transparent%20bg.png"
 
 function Logo({ light = false }) {
-  return <img src={LONG_LOGO} alt="CatchQuote" className="h-8 w-auto" />
+  return <img src={LONG_LOGO} alt="CatchQuote" className="h-10 w-auto" />
 }
 
 function Check({ white = false }) {

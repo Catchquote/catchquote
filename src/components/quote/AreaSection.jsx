@@ -11,7 +11,7 @@ function fmtAmt(n, currency = 'SGD') {
   return `${currency} ${Number(n).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-const COL_GRID = '20px 100px 1fr 72px 64px 92px 80px 28px'
+const COL_GRID = '20px 90px 220px 65px 58px 88px 72px 28px'
 
 export default function AreaSection({
   areaName, items, subtotal, currency,
@@ -104,7 +104,7 @@ export default function AreaSection({
         <>
           {/* Horizontally scrollable table area */}
           <div className="overflow-x-auto">
-            <div style={{ minWidth: '540px' }}>
+            <div style={{ minWidth: '660px' }}>
               {/* Column headers */}
               {items.length > 0 && (
                 <div

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
 import {
   SortableContext, verticalListSortingStrategy, arrayMove,
@@ -23,7 +23,8 @@ export default function AreaSection({
   const [collapsed, setCollapsed] = useState(false)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 250, tolerance: 5 } })
   )
 
   function handleDragEnd({ active, over }) {
@@ -108,7 +109,7 @@ export default function AreaSection({
               {/* Column headers */}
               {items.length > 0 && (
                 <div
-                  className="grid items-center px-3 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
+                  className="grid items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
                   style={{ gridTemplateColumns: COL_GRID }}
                 >
                   <span />

@@ -9,7 +9,7 @@ function Section({ title, description, children }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
       <div className="px-6 py-5 border-b border-gray-100">
-        <h2 className="font-semibold text-gray-900 text-sm">{title}</h2>
+        <h2 className="font-sans font-semibold text-gray-900 text-sm">{title}</h2>
         {description && <p className="text-xs text-gray-400 mt-0.5">{description}</p>}
       </div>
       <div className="px-6 py-5 flex flex-col gap-5">{children}</div>

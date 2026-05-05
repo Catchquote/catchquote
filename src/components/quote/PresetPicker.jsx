@@ -113,7 +113,7 @@ export default function PresetPicker({ areas, defaultArea, onAdd, onClose }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <h2 className="font-semibold text-gray-900 text-sm">Add from Presets</h2>
+          <h2 className="font-sans font-semibold text-gray-900 text-sm">Add from Presets</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

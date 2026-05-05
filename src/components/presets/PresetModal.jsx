@@ -69,7 +69,7 @@ export default function PresetModal({ preset, onSave, onClose }) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
-          <h2 className="font-semibold text-gray-900 text-base">{isEdit ? 'Edit Preset' : 'Add Preset'}</h2>
+          <h2 className="font-sans font-semibold text-gray-900 text-base">{isEdit ? 'Edit Preset' : 'Add Preset'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

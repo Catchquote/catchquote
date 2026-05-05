@@ -27,7 +27,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+        sans:  ['Lato', 'ui-sans-serif', 'system-ui'],
+        serif: ['Cormorant Garamond', 'Georgia', 'serif'],
       },
     },
   },

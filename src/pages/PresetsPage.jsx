@@ -46,7 +46,7 @@ function CategoryGroup({ category, items, onEdit, onDelete, onToggle }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-100">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{category}</h3>
+        <h3 className="font-sans text-xs font-bold text-gray-500 uppercase tracking-widest">{category}</h3>
         <span className="text-xs text-gray-400">{items.length} item{items.length !== 1 ? 's' : ''}</span>
       </div>
 
@@ -496,7 +496,7 @@ export default function PresetsPage({ onBack, onNavigate }) {
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-2">Delete preset?</h3>
+            <h3 className="font-sans font-semibold text-gray-900 mb-2">Delete preset?</h3>
             <p className="text-sm text-gray-500 mb-5">This can't be undone. The preset won't appear in future quotes.</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteConfirm(null)}

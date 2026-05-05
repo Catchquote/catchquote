@@ -12,7 +12,7 @@ export default function QuoteMetaForm({ quote, onChange, wsSettings }) {
 
       {/* ── Quote Details ── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Quote Details</h2>
+        <h2 className="font-sans text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Quote Details</h2>
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -66,7 +66,7 @@ export default function QuoteMetaForm({ quote, onChange, wsSettings }) {
 
       {/* ── Client Details ── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Client Details</h2>
+        <h2 className="font-sans text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Client Details</h2>
         <div className="flex flex-col gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Client Name</label>

@@ -378,7 +378,7 @@ export default function QuotePage({ quoteId, onBack, onNavigate }) {
         {/* Areas of works */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <h2 className="font-sans text-xs font-semibold text-gray-500 uppercase tracking-wide">
               Areas of Works
             </h2>
             <span className="text-xs text-gray-400">

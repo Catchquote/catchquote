@@ -394,7 +394,7 @@ export default function LandingPage({ onSignIn, onSignUp }) {
               <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse"/>
               Built for Singapore interior designers
             </div>
-            <h1 className="text-4xl lg:text-5xl xl:text-[3.25rem] font-extrabold text-gray-900 leading-[1.15] mb-6 tracking-tight">
+            <h1 className="font-serif text-6xl lg:text-7xl font-bold text-gray-900 leading-[1.1] mb-6">
               Quote Faster.<br />Win More.<br />
               <span className="text-brand-600">Protect Your Margins.</span>
             </h1>

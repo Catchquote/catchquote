@@ -214,7 +214,7 @@ export default function TeamPage({ onBack, onNavigate }) {
         {/* Current members */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-800 text-sm">Members ({members.length})</h2>
+            <h2 className="font-sans font-semibold text-gray-800 text-sm">Members ({members.length})</h2>
           </div>
           {loading ? (
             <div className="px-5 py-8 text-center text-sm text-gray-400">Loading…</div>
@@ -267,7 +267,7 @@ export default function TeamPage({ onBack, onNavigate }) {
         {invites.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800 text-sm">Pending Invites ({invites.length})</h2>
+              <h2 className="font-sans font-semibold text-gray-800 text-sm">Pending Invites ({invites.length})</h2>
             </div>
             <table className="w-full text-sm">
               <thead>

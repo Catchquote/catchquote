@@ -11,7 +11,7 @@ function fmtAmt(n, currency = 'SGD') {
   return `${currency} ${Number(n).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-const COL_GRID = '20px 90px 220px 65px 58px 88px 72px 28px'
+const COL_GRID = '20px 90px 1fr 65px 58px 88px 72px 28px'
 
 export default function AreaSection({
   areaName, items, subtotal, currency,
@@ -105,11 +105,11 @@ export default function AreaSection({
         <>
           {/* Horizontally scrollable table area */}
           <div className="overflow-x-auto">
-            <div style={{ minWidth: '660px' }}>
+            <div style={{ minWidth: '720px' }}>
               {/* Column headers */}
               {items.length > 0 && (
                 <div
-                  className="grid items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
+                  className="grid items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
                   style={{ gridTemplateColumns: COL_GRID }}
                 >
                   <span />
@@ -126,7 +126,7 @@ export default function AreaSection({
               {/* DnD item rows */}
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex flex-col gap-1 p-2">
+                  <div className="flex flex-col gap-1 px-3 py-2">
                     {items.map(item => (
                       <LineItemRow
                         key={item.id}

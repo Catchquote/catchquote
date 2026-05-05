@@ -21,7 +21,7 @@ export default function LineItemRow({ item, colGrid, onUpdate, onRemove }) {
         zIndex:    isDragging ? 999 : undefined,
         gridTemplateColumns: colGrid,
       }}
-      className="grid items-center gap-2 px-2 py-2 bg-white border border-gray-100 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all group"
+      className="grid items-center gap-2 px-1 py-2 bg-white border border-gray-100 rounded-lg hover:border-brand-200 hover:shadow-sm transition-all group"
     >
       {/* Drag handle */}
       <button

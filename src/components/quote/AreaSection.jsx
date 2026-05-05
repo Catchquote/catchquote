@@ -102,45 +102,50 @@ export default function AreaSection({
       {/* ── Body (collapsible) ── */}
       {!collapsed && (
         <>
-          {/* Column headers */}
-          {items.length > 0 && (
-            <div
-              className="grid items-center px-3 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
-              style={{ gridTemplateColumns: COL_GRID }}
-            >
-              <span />
-              <span>Category</span>
-              <span>Description</span>
-              <span>Unit</span>
-              <span className="text-right">Qty</span>
-              <span className="text-right">Unit Price</span>
-              <span className="text-right">Amount</span>
-              <span />
-            </div>
-          )}
+          {/* Horizontally scrollable table area */}
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: '540px' }}>
+              {/* Column headers */}
+              {items.length > 0 && (
+                <div
+                  className="grid items-center px-3 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wide"
+                  style={{ gridTemplateColumns: COL_GRID }}
+                >
+                  <span />
+                  <span>Category</span>
+                  <span>Description</span>
+                  <span>Unit</span>
+                  <span className="text-right">Qty</span>
+                  <span className="text-right">Unit Price</span>
+                  <span className="text-right">Amount</span>
+                  <span />
+                </div>
+              )}
 
-          {/* DnD item rows */}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col gap-1 p-2">
-                {items.map(item => (
-                  <LineItemRow
-                    key={item.id}
-                    item={item}
-                    colGrid={COL_GRID}
-                    onUpdate={onUpdate}
-                    onRemove={onRemove}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+              {/* DnD item rows */}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                  <div className="flex flex-col gap-1 p-2">
+                    {items.map(item => (
+                      <LineItemRow
+                        key={item.id}
+                        item={item}
+                        colGrid={COL_GRID}
+                        onUpdate={onUpdate}
+                        onRemove={onRemove}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
-          {items.length === 0 && (
-            <div className="py-6 text-center text-sm text-gray-400">
-              No items yet — add below.
+              {items.length === 0 && (
+                <div className="py-6 text-center text-sm text-gray-400">
+                  No items yet — add below.
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Add buttons */}
           <div className="flex items-center gap-2 px-3 pb-3 pt-1 border-t border-gray-100">

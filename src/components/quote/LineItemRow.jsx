@@ -93,7 +93,7 @@ export default function LineItemRow({ item, colGrid, onUpdate, onRemove }) {
       {/* Remove */}
       <button
         onClick={() => onRemove(item.id)}
-        className="text-gray-200 hover:text-red-400 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+        className="text-gray-300 hover:text-red-400 transition-colors flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100"
         title="Remove item"
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

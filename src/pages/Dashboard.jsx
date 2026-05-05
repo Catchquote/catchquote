@@ -168,6 +168,7 @@ export default function Dashboard({ onOpenQuote, onNavigate, upgraded = false, o
 
         {/* Quotes table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-800 text-sm">
               {role === 'admin' ? 'All Quotes' : 'My Quotes'}
@@ -205,48 +206,45 @@ export default function Dashboard({ onOpenQuote, onNavigate, upgraded = false, o
               </button>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-xs text-gray-400 uppercase tracking-wide">
-                  <th className="text-left px-5 py-3 font-semibold">Quote #</th>
-                  <th className="text-left px-5 py-3 font-semibold">Project</th>
-                  <th className="text-left px-5 py-3 font-semibold hidden sm:table-cell">Client</th>
-                  <th className="text-left px-5 py-3 font-semibold hidden md:table-cell">Date</th>
-                  <th className="text-right px-5 py-3 font-semibold">Total</th>
-                  <th className="text-center px-5 py-3 font-semibold">Status</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {quotes.map(q => (
-                  <tr key={q.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{q.quote_number}</td>
-                    <td className="px-5 py-3.5 font-medium text-gray-800">
-                      {q.project_name || '—'}
-                      {role === 'admin' && q.created_by !== user.id && (
-                        <span className="ml-1.5 text-xs text-gray-400">(team)</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-gray-500 hidden sm:table-cell">{q.client_name || '—'}</td>
-                    <td className="px-5 py-3.5 text-gray-400 hidden md:table-cell">{q.created_at?.slice(0, 10)}</td>
-                    <td className="px-5 py-3.5 text-right font-semibold text-gray-900">{fmt(q.total || 0)}</td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLES[q.status] || STATUS_STYLES.draft}`}>
-                        {capitalize(q.status)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={() => onOpenQuote(q.id)}
-                        className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                      >
-                        Open →
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" style={{ minWidth: '480px' }}>
+                <thead>
+                  <tr className="bg-gray-50 text-xs text-gray-400 uppercase tracking-wide">
+                    <th className="text-left px-4 py-3 font-semibold">Quote #</th>
+                    <th className="text-left px-4 py-3 font-semibold">Project</th>
+                    <th className="text-left px-4 py-3 font-semibold hidden sm:table-cell">Client</th>
+                    <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">Date</th>
+                    <th className="text-right px-4 py-3 font-semibold">Total</th>
+                    <th className="text-center px-4 py-3 font-semibold">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {quotes.map(q => (
+                    <tr
+                      key={q.id}
+                      onClick={() => onOpenQuote(q.id)}
+                      className="hover:bg-gray-50 active:bg-brand-50 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-4 font-mono text-xs text-gray-500">{q.quote_number}</td>
+                      <td className="px-4 py-4 font-medium text-gray-800">
+                        {q.project_name || '—'}
+                        {role === 'admin' && q.created_by !== user.id && (
+                          <span className="ml-1.5 text-xs text-gray-400">(team)</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 hidden sm:table-cell">{q.client_name || '—'}</td>
+                      <td className="px-4 py-4 text-gray-400 hidden md:table-cell">{q.created_at?.slice(0, 10)}</td>
+                      <td className="px-4 py-4 text-right font-semibold text-gray-900">{fmt(q.total || 0)}</td>
+                      <td className="px-4 py-4 text-center">
+                        <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLES[q.status] || STATUS_STYLES.draft}`}>
+                          {capitalize(q.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 

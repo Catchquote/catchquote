@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 
-export default function LoginPage({ onBack }) {
+export default function LoginPage({ onBack, onForgotPassword }) {
   const { signIn, sessionExpiredMsg } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -63,7 +63,16 @@ export default function LoginPage({ onBack }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-600">Password</label>
+                <button
+                  type="button"
+                  onClick={onForgotPassword}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <input
                 type="password"
                 required

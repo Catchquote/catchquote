@@ -11,6 +11,8 @@ import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 
 const Spinner = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -24,8 +26,6 @@ const Spinner = () => (
   </div>
 )
 
-// Detect ?upgraded=true in the URL (set by Stripe success_url) and clear it
-// immediately so the param doesn't persist on refresh.
 function consumeUpgradeParam() {
   const params = new URLSearchParams(window.location.search)
   if (params.get('upgraded') === 'true') {
@@ -34,6 +34,8 @@ function consumeUpgradeParam() {
   }
   return false
 }
+
+const INITIAL_PATH = window.location.pathname
 
 function AppContent() {
   const { user, workspace, role, loading, workspaceError, workspaceReady, isSuperAdmin, signOut, retryWorkspace } = useAuth()
@@ -55,13 +57,27 @@ function AppContent() {
     setPage('quote')
   }
 
+  // ── Password reset — must be checked before any auth gate ───────────────────
+  if (INITIAL_PATH === '/reset-password') {
+    return (
+      <ResetPasswordPage
+        onInvalidToken={() => { window.history.replaceState({}, '', '/'); setUnauthPage('forgot-password') }}
+      />
+    )
+  }
+
   // ── Auth loading (first page load only — never block on background token refresh) ─
   if (loading && !workspaceReady) return <Spinner />
 
   // ── Not authenticated ─────────────────────────────────────────────────────────
   if (!user) {
     if (unauthPage === 'login') {
-      return <LoginPage onBack={() => setUnauthPage('landing')} />
+      return (
+        <LoginPage
+          onBack={() => setUnauthPage('landing')}
+          onForgotPassword={() => setUnauthPage('forgot-password')}
+        />
+      )
     }
     if (unauthPage === 'signup') {
       return (
@@ -70,6 +86,9 @@ function AppContent() {
           onBack={() => setUnauthPage('landing')}
         />
       )
+    }
+    if (unauthPage === 'forgot-password') {
+      return <ForgotPasswordPage onBack={() => setUnauthPage('login')} />
     }
     return (
       <LandingPage

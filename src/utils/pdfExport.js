@@ -638,7 +638,7 @@ function drawArea(doc, areaName, areaItems, areaSubtotal, BRAND, layout, currenc
       lineWidth:  0,
     },
     columnStyles: {
-      0: { cellWidth: 10,   halign: 'center' },
+      0: { cellWidth: 16,   halign: 'center' },
       1: { cellWidth: 'auto' },
       2: { cellWidth: 13,   halign: 'right'  },
       3: { cellWidth: 15,   halign: 'center' },
